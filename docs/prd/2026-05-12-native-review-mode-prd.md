@@ -2,7 +2,7 @@
 
 ## Summary
 
-Pi adds a native `/review` command for reviewing Git changes before asking an agent to respond. The command opens a local browser review UI, shows a frozen unified diff, lets the user add file-level and line-level comments, then writes a structured Markdown prompt into the Pi editor. The user can edit that prompt before sending it to the agent.
+Pi adds a native `/review` command via an extension for reviewing Git changes before asking an agent to respond. The command opens a local browser review UI, shows a frozen unified diff, lets the user add file-level and line-level comments, then writes a structured Markdown prompt into the Pi editor. The user can edit that prompt before sending it to the agent.
 
 The MVP uses Git as the source of truth. It does not try to reconstruct which changes came from the current Pi session.
 
