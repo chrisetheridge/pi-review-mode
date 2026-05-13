@@ -19,24 +19,67 @@ pnpm biome:check
 Run locally in Pi from this repository:
 
 ```sh
-pi -e ./src/index.ts
+pnpm build
+pi -e ./
 ```
 
-For a built package, run `pnpm build` first so the extension can serve `dist/review-web` without a dev server.
+The package manifest points Pi at the built extension entry in `dist/extension`, and the extension serves the bundled browser UI from `dist/review-web`.
 
 ## Installation
 
-For project-local use, place or symlink this package under the project’s `.pi/extensions` directory if your Pi setup loads project extensions from there. If distributed as a package, install it with your normal package manager and point Pi at the package extension entry.
+Install from a local checkout:
 
-The package entry is declared in `package.json`:
+```sh
+pnpm build
+pi install ./
+```
+
+Try it for one Pi run without installing:
+
+```sh
+pnpm build
+pi -e ./
+```
+
+Install from npm after publishing:
+
+```sh
+pi install npm:pi-review-mode
+```
+
+Install from git:
+
+```sh
+pi install git:github.com/<owner>/pi-review-mode
+```
+
+The package entry is declared in `package.json` and loads the built extension:
 
 ```json
 {
   "pi": {
-    "extensions": ["./src/index.ts"]
+    "extensions": ["./dist/extension/src/index.js"]
   }
 }
 ```
+
+## Distribution
+
+Build and inspect the npm tarball before publishing:
+
+```sh
+pnpm install
+pnpm build
+npm pack --dry-run
+```
+
+Publish with npm when the tarball includes `dist/extension/**` and `dist/review-web/**`:
+
+```sh
+npm publish
+```
+
+The `prepare` script runs the build, so `npm pack`, `npm publish`, and Pi git installs rebuild both the extension and browser assets. Runtime browser assets are bundled locally; no CDN assets are required.
 
 ## Manual Smoke Tests
 

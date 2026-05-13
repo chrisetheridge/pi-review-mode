@@ -8,22 +8,16 @@ importers:
 
   .:
     dependencies:
-      '@earendil-works/pi-coding-agent':
-        specifier: ^0.74.0
-        version: 0.74.0(ws@8.20.0)(zod@4.4.3)
       gitdiff-parser:
         specifier: ^0.3.1
         version: 0.3.1
-      react:
-        specifier: ^19.1.0
-        version: 19.2.6
-      react-dom:
-        specifier: ^19.1.0
-        version: 19.2.6(react@19.2.6)
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.0.0
         version: 2.4.15
+      '@earendil-works/pi-coding-agent':
+        specifier: ^0.74.0
+        version: 0.74.0(ws@8.20.0)(zod@4.4.3)
       '@tailwindcss/vite':
         specifier: ^4.1.6
         version: 4.3.0(vite@6.4.2(@types/node@22.19.18)(jiti@2.7.0)(lightningcss@1.32.0)(yaml@2.9.0))
@@ -54,6 +48,12 @@ importers:
       lint-staged:
         specifier: ^17.0.4
         version: 17.0.4
+      react:
+        specifier: ^19.1.0
+        version: 19.2.6
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.2.6(react@19.2.6)
       tailwindcss:
         specifier: ^4.1.6
         version: 4.3.0

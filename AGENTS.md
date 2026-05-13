@@ -16,9 +16,9 @@ Before changing code, read:
 
 - `src/index.ts` — Pi extension entrypoint and `/review` command wiring.
 - `src/review/**` — backend review domain: command parsing, Git source, diff parsing, sessions, server, prompt generation, browser surface.
-- `src/review-web/**` — React/Vite browser review UI.
+- `apps/review-web/**` — React/Vite browser review UI.
 - `test/review/**` — backend tests and Git fixtures.
-- `src/review-web/**/*.test.tsx` — web UI component tests.
+- `apps/review-web/**/*.test.tsx` — web UI component tests.
 - `docs/prd/**` — product requirements.
 - `docs/superpowers/plans/**` — implementation plans and task breakdowns.
 
@@ -67,14 +67,15 @@ pnpm biome:format
 For behavior that affects the live extension flow, also perform the relevant manual smoke test from `README.md` with:
 
 ```sh
-pi -e ./src/index.ts
+pnpm build
+pi -e ./
 ```
 
 ## Build output
 
 - `dist/` is generated build output.
 - Do not hand-edit generated files.
-- Prefer source changes under `src/**`, tests under `test/**`, and docs under `docs/**`.
+- Prefer extension source changes under `src/**`, browser UI changes under `apps/review-web/**`, tests under `test/**`, and docs under `docs/**`.
 
 ## Issue tracker
 

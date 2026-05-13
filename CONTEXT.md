@@ -18,24 +18,27 @@ The extension:
 - **Review scope**: the set of Git changes being reviewed. Supported scopes are working-tree changes and branch-vs-base changes.
 - **Working-tree review**: review of staged, unstaged, and untracked changes as a combined final diff against `HEAD`.
 - **Branch review**: review of committed branch changes from merge-base to `HEAD`; requires a strictly clean working tree.
-- **Frozen snapshot**: the immutable diff captured when review starts. Browser comments refer to this snapshot, not live files.
+- **Frozen snapshot**: the immutable diff captured when review starts. Browser comments refer to this snapshot, not live files. The frozen snapshot owns comment anchor lookup and validation.
 - **Comment anchor**: structured position data for a file-level or diff-line comment, including file path, side, hunk, row index, line numbers, and line text.
 - **Draft**: a saved review comment stored server-side for the active review session.
 - **Review session**: the short-lived server-side owner of the snapshot, token, drafts, heartbeat, timeout, close, and submit lifecycle.
 - **Review surface**: the UI host used to collect comments. The MVP surface is a local browser.
 - **Generated prompt**: the Markdown feedback prompt written into the Pi editor after submit.
+- **Review completion**: the submit-time conversion of saved drafts against the frozen snapshot into the generated prompt and completion result.
 
 ## Responsibilities
 
 - `src/index.ts` registers `/review`, chooses a scope, starts review, and writes submitted prompts into the editor.
 - `src/review/review-command.ts` parses `/review` arguments.
 - `src/review/git-review-source.ts` detects Git state, resolves bases, creates snapshots, and enforces diff thresholds.
+- `src/review/frozen-snapshot.ts` owns frozen snapshot helper behavior such as comment anchor lookup and validation while keeping snapshot data serializable.
 - `src/review/diff-parser.ts` converts unified Git diffs into files, hunks, rows, and anchors.
 - `src/review/review-session.ts` owns tokens, drafts, heartbeat, close, submit, expiry, and cleanup behavior.
 - `src/review/review-server.ts` exposes the localhost HTTP API and serves bundled browser assets.
 - `src/review/review-prompt-builder.ts` creates the Markdown prompt from snapshot comments.
 - `src/review/browser-review-surface.ts` starts the server, opens the browser, and resolves on submit/close/expiry.
-- `src/review-web/**` renders the browser UI and calls the review server API.
+- `apps/review-web/**` renders the browser UI and calls the review server API.
+- `apps/review-web/src/use-review-surface-state.ts` owns browser review surface state such as loading, drafts, active editors, collapsed files, and submit eligibility.
 - `test/review/**` verifies backend behavior with unit tests and Git fixtures.
 
 ## Architectural Rules
@@ -72,7 +75,8 @@ pnpm biome:format
 Manual extension smoke test:
 
 ```sh
-pi -e ./src/index.ts
+pnpm build
+pi -e ./
 ```
 
 Use the smoke scenarios in `README.md` for working-tree review, branch review, explicit base review, submit behavior, and close/cancel behavior.

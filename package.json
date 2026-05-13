@@ -1,33 +1,43 @@
 {
   "name": "pi-review-mode",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "packageManager": "pnpm@11.0.0",
   "description": "Pi extension that opens a local browser review surface for frozen Git diffs.",
+  "keywords": [
+    "pi-package"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "CONTEXT.md",
+    "package.json"
+  ],
   "scripts": {
-    "build": "pnpm build:extension && pnpm build:web",
+    "build": "npm run clean && npm run build:extension && npm run build:web",
+    "clean": "rm -rf dist",
     "build:extension": "tsc -p tsconfig.build.json",
-    "build:web": "vite build --config src/review-web/vite.config.ts",
-    "check": "pnpm biome:check && pnpm typecheck && pnpm test -- --run",
+    "build:web": "vite build --config apps/review-web/vite.config.ts",
+    "check": "npm run biome:check && npm run typecheck && npm run test -- --run",
     "biome:check": "biome check .",
     "biome:format": "biome format --write .",
     "test": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "prepare": "husky"
+    "prepare": "npm run build && husky"
   },
   "pi": {
     "extensions": [
-      "./src/index.ts"
+      "./dist/extension/src/index.js"
     ]
   },
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "^0.74.0",
-    "gitdiff-parser": "^0.3.1",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "gitdiff-parser": "^0.3.1"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
   },
   "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.74.0",
     "@biomejs/biome": "^2.0.0",
     "@tailwindcss/vite": "^4.1.6",
     "@testing-library/react": "^16.3.0",
@@ -39,6 +49,8 @@
     "husky": "^9.1.7",
     "jsdom": "^26.1.0",
     "lint-staged": "^17.0.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "tailwindcss": "^4.1.6",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",

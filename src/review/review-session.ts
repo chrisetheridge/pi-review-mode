@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
-import type { ReviewAnchor, ReviewDraft, ReviewSnapshot } from "./types.js";
+import { resolveSnapshotAnchor } from "./frozen-snapshot.js";
+import type { ReviewDraft, ReviewSnapshot } from "./types.js";
 
 export class ReviewSessionError extends Error {
   readonly status: number;
@@ -28,7 +29,6 @@ export class ReviewSession {
   readonly snapshot: ReviewSnapshot;
   private readonly ttlMs: number;
   private readonly now: () => number;
-  private readonly anchors: Map<string, ReviewAnchor>;
   private readonly drafts = new Map<string, ReviewDraft>();
   private readonly onClose?: (reason: ReviewSessionCloseReason) => void;
   private expiresAt: number;
@@ -42,7 +42,6 @@ export class ReviewSession {
     this.now = options.now ?? Date.now;
     this.onClose = options.onClose;
     this.expiresAt = this.now() + this.ttlMs;
-    this.anchors = collectAnchors(snapshot);
   }
 
   isAuthorized(token: string | undefined): boolean {
@@ -56,7 +55,7 @@ export class ReviewSession {
 
   saveDraft(token: string, anchorId: string, body: string): ReviewDraft {
     this.assertUsable(token);
-    const anchor = this.anchors.get(anchorId);
+    const anchor = resolveSnapshotAnchor(this.snapshot, anchorId);
     if (!anchor) {
       throw new ReviewSessionError("Unknown review anchor.", 404);
     }
@@ -141,17 +140,4 @@ export class ReviewSession {
     this.drafts.clear();
     this.onClose?.(reason);
   }
-}
-
-function collectAnchors(snapshot: ReviewSnapshot): Map<string, ReviewAnchor> {
-  const anchors = new Map<string, ReviewAnchor>();
-  for (const file of snapshot.files) {
-    anchors.set(file.anchor.id, file.anchor);
-    for (const hunk of file.hunks) {
-      for (const row of hunk.rows) {
-        anchors.set(row.anchor.id, row.anchor);
-      }
-    }
-  }
-  return anchors;
 }

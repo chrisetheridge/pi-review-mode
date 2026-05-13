@@ -22,6 +22,8 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
+    "apps/review-web/**/*.ts",
+    "apps/review-web/**/*.tsx",
     "test/**/*.ts",
     "vitest.config.ts"
   ],

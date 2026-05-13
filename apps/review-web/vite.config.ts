@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  root: "src/review-web",
+  root: "apps/review-web",
   base: "./",
   build: {
     outDir: "../../dist/review-web",

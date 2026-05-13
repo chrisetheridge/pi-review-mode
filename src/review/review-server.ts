@@ -6,7 +6,7 @@ import {
   type ServerResponse
 } from "node:http";
 import { extname, join, normalize } from "node:path";
-import { buildReviewPrompt } from "./review-prompt-builder.js";
+import { completeReview } from "./review-completion.js";
 import { ReviewSession, ReviewSessionError } from "./review-session.js";
 import type { ReviewSnapshot } from "./types.js";
 
@@ -168,9 +168,9 @@ export class ReviewServer {
     }
     if (method === "POST" && url.pathname === "/api/submit") {
       const drafts = this.session.submit(authorizedToken);
-      const prompt = buildReviewPrompt(this.session.snapshot, drafts);
-      this.completeOnce({ prompt, closed: false });
-      sendJson(response, 200, { prompt });
+      const result = completeReview(this.session.snapshot, drafts);
+      this.completeOnce(result);
+      sendJson(response, 200, { prompt: result.prompt });
       return;
     }
 

@@ -46,7 +46,7 @@ export async function openBrowserReviewSurface(
 export function defaultAssetsDir(): string {
   const candidates = [
     resolve(process.cwd(), "dist/review-web"),
-    resolve(process.cwd(), "src/review-web"),
+    resolve(process.cwd(), "apps/review-web"),
     resolve(dirname(fileURLToPath(import.meta.url)), "../review-web"),
     resolve(dirname(fileURLToPath(import.meta.url)), "../../../review-web")
   ];
