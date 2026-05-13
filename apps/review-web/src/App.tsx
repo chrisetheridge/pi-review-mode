@@ -1,4 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { createReviewApi, type ReviewApi, readTokenFromLocation } from "./api";
 import { FileDiff } from "./components/FileDiff";
 import { FileTree } from "./components/FileTree";
@@ -9,12 +11,58 @@ interface AppProps {
   token?: string;
 }
 
+type Theme = "light" | "dark";
+
+const THEME_STORAGE_KEY = "pi-review-mode-theme";
+
+function readInitialTheme(): Theme {
+  try {
+    const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (saved === "light" || saved === "dark") {
+      return saved;
+    }
+  } catch {
+    // Ignore storage access failures and keep the production light default.
+  }
+  return "light";
+}
+
 export function App({ api: providedApi, token: providedToken }: AppProps) {
   const token = providedToken ?? readTokenFromLocation();
   const api = useMemo(
     () => providedApi ?? createReviewApi(token),
     [providedApi, token]
   );
+  const [theme, setTheme] = useState<Theme>(readInitialTheme);
+  const [viewedPaths, setViewedPaths] = useState<Set<string>>(() => new Set());
+  const isDark = theme === "dark";
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // Ignore storage access failures. The in-memory toggle still works.
+    }
+  }, [theme]);
+
+  function toggleViewed(path: string) {
+    setViewedPaths((current) => {
+      const next = new Set(current);
+      if (next.has(path)) {
+        next.delete(path);
+        expandPath(path);
+      } else {
+        next.add(path);
+        collapsePath(path);
+      }
+      return next;
+    });
+  }
+
+  const themedFullscreen = `grid min-h-screen place-content-center bg-background p-6 text-center text-foreground ${
+    isDark ? "dark" : ""
+  }`;
+
   const {
     snapshot,
     comments,
@@ -32,6 +80,8 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
     saveComment,
     deleteComment,
     toggleCollapse,
+    collapsePath,
+    expandPath,
     closeReview,
     submitReview
   } = useReviewSurfaceState({
@@ -41,27 +91,25 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
   });
 
   if (loading) {
-    return (
-      <main className="grid min-h-screen place-content-center p-6 text-center">
-        Loading review...
-      </main>
-    );
+    return <main className={themedFullscreen}>Loading review...</main>;
   }
 
   if (error) {
     return (
-      <main className="grid min-h-screen place-content-center p-6 text-center text-red-900">
-        <h1 className="m-0 text-2xl font-bold">Review unavailable</h1>
-        <p className="mt-1 text-slate-500">{error}</p>
+      <main className={themedFullscreen}>
+        <h1 className="m-0 text-2xl font-bold text-destructive">
+          Review unavailable
+        </h1>
+        <p className="mt-1 text-muted-foreground">{error}</p>
       </main>
     );
   }
 
   if (!snapshot || snapshot.files.length === 0) {
     return (
-      <main className="grid min-h-screen place-content-center p-6 text-center">
+      <main className={themedFullscreen}>
         <h1 className="m-0 text-2xl font-bold">No changes to review</h1>
-        <p className="mt-1 text-slate-500">
+        <p className="mt-1 text-muted-foreground">
           The selected snapshot does not contain reviewable files.
         </p>
       </main>
@@ -70,9 +118,9 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
 
   if (submittedPrompt) {
     return (
-      <main className="grid min-h-screen place-content-center p-6 text-center">
+      <main className={themedFullscreen}>
         <h1 className="m-0 text-2xl font-bold">Review submitted</h1>
-        <p className="mt-1 text-slate-500">
+        <p className="mt-1 text-muted-foreground">
           Your feedback was sent back to Pi.
         </p>
       </main>
@@ -80,27 +128,13 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
   }
 
   return (
-    <div className="grid h-screen grid-cols-[260px_minmax(0,1fr)] overflow-hidden bg-[#081425] text-[#d8e3fb] max-[800px]:block max-[800px]:h-auto max-[800px]:min-h-screen max-[800px]:overflow-visible">
-      <aside className="flex min-w-0 flex-col border-[#424754] border-r bg-[#111c2d] max-[800px]:border-r-0 max-[800px]:border-b">
-        <div className="flex h-14 items-center gap-3 px-4">
-          <div className="grid size-8 place-items-center rounded bg-[#adc6ff] font-extrabold text-[#002e6a]">
-            pi
-          </div>
-          <div>
-            <h1 className="m-0 text-base font-bold leading-tight">
-              Pi Review Mode
-            </h1>
-            <p className="m-0 text-[#c2c6d6] text-xs">Local repository</p>
-          </div>
-        </div>
-        <div className="grid gap-1 px-2 py-4">
-          <button
-            type="button"
-            className="min-h-9 border-[#adc6ff] border-l-2 px-3 py-2 text-left font-extrabold text-[#adc6ff]"
-          >
-            Files
-          </button>
-        </div>
+    <div
+      className={`grid h-screen grid-cols-[300px_minmax(0,1fr)] overflow-hidden bg-background text-foreground ${
+        isDark ? "dark" : ""
+      } max-[800px]:block max-[800px]:h-auto max-[800px]:min-h-screen max-[800px]:overflow-visible`}
+      data-testid="review-app-shell"
+    >
+      <aside className="flex min-w-0 flex-col border-border border-r bg-sidebar text-sidebar-foreground max-[800px]:border-r-0 max-[800px]:border-b">
         <FileTree
           files={snapshot.files}
           comments={comments}
@@ -110,37 +144,51 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
           onToggleCollapse={toggleCollapse}
         />
       </aside>
-      <main className="grid min-w-0 grid-rows-[56px_minmax(0,1fr)_64px] overflow-hidden max-[800px]:block">
-        <header className="flex items-center justify-between gap-4 border-[#424754] border-b bg-[#081425] px-4 max-[800px]:flex-wrap max-[800px]:px-3 max-[800px]:py-3">
+      <main className="grid min-w-0 grid-rows-[56px_minmax(0,1fr)_56px] overflow-hidden max-[800px]:block">
+        <header className="flex items-center justify-between gap-4 border-border border-b bg-card px-4 max-[800px]:flex-wrap max-[800px]:px-3 max-[800px]:py-3">
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
-              <strong className="text-lg">Pi Review</strong>
-              <span className="text-[#c2c6d6]">/</span>
-              <code className="truncate font-mono text-[#c2c6d6] text-xs">
-                {snapshot.title ?? "Review changes"}
+              <strong className="text-sm font-semibold">Review changes</strong>
+              <span className="text-muted-foreground">/</span>
+              <code className="truncate font-mono text-muted-foreground text-xs">
+                {snapshot.title ?? "Local snapshot"}
               </code>
             </div>
-            <p className="m-0 text-[#c2c6d6] text-xs">
+            <p className="m-0 text-muted-foreground text-xs">
               {snapshot.stats.filesChanged} files · +{snapshot.stats.additions}{" "}
               -{snapshot.stats.deletions} · {comments.length} saved comments
             </p>
           </div>
-          <button
-            type="button"
-            className="min-h-9 rounded-md border border-[#adc6ff] bg-[#adc6ff] px-4 font-extrabold text-[#002e6a] disabled:cursor-not-allowed disabled:opacity-55"
-            disabled={!canSubmit}
-            onClick={() => void submitReview()}
-          >
-            Finish Review
-          </button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              aria-pressed={isDark}
+              aria-label={isDark ? "Use light mode" : "Use dark mode"}
+              onClick={() => setTheme(isDark ? "light" : "dark")}
+            >
+              {isDark ? "Dark" : "Light"}
+            </Button>
+            <Button
+              type="button"
+              disabled={!canSubmit}
+              onClick={() => void submitReview()}
+            >
+              Finish Review
+            </Button>
+          </div>
         </header>
         {submitError ? (
-          <div className="absolute top-[68px] right-4 z-10 max-w-[420px] rounded-lg border border-[#ffb4ab] bg-[#93000a] px-3 py-2 text-[#ffdad6]">
-            {submitError}
-          </div>
+          <Alert
+            variant="destructive"
+            className="absolute top-[68px] right-4 z-10 max-w-[420px]"
+          >
+            <AlertTitle>Submit failed</AlertTitle>
+            <AlertDescription>{submitError}</AlertDescription>
+          </Alert>
         ) : null}
         <section
-          className="min-h-0 overflow-auto bg-[#152031] p-4"
+          className="min-h-0 overflow-auto bg-background p-4"
           aria-label="Unified diff"
         >
           {snapshot.files.map((file) => (
@@ -154,35 +202,37 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
               activeEditors={activeEditors.filter(
                 (editor) => editor.anchor.filePath === file.path
               )}
+              viewed={viewedPaths.has(file.path)}
+              onToggleViewed={toggleViewed}
               onToggleCollapse={toggleCollapse}
               onStartComment={startComment}
               onCancelEditor={cancelEditor}
               onSaveComment={saveComment}
               onDeleteComment={deleteComment}
+              theme={theme}
             />
           ))}
         </section>
-        <footer className="flex items-center justify-between gap-4 border-[#424754] border-t bg-[#111c2d] px-6 max-[800px]:flex-wrap max-[800px]:px-3 max-[800px]:py-3">
-          <div className="flex items-center gap-4 text-sm font-bold">
-            <span>{comments.length} Saved Comments</span>
-            <span>{snapshot.files.length} Files Reviewed</span>
+        <footer className="flex items-center justify-between gap-4 border-border border-t bg-card px-4 max-[800px]:flex-wrap max-[800px]:px-3 max-[800px]:py-3">
+          <div className="flex items-center gap-4 text-muted-foreground text-sm">
+            <span>{comments.length} saved comments</span>
+            <span>{snapshot.files.length} files</span>
           </div>
           <div className="flex items-center gap-2">
-            <button
+            <Button
               type="button"
-              className="min-h-8 rounded-md border border-[#424754] px-3 text-[#c2c6d6]"
+              variant="outline"
               onClick={() => void closeReview()}
             >
               Close
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="min-h-9 rounded-md border border-[#4edea3] bg-[#4edea3] px-4 font-extrabold text-[#003824] disabled:cursor-not-allowed disabled:opacity-55"
               disabled={!canSubmit}
               onClick={() => void submitReview()}
             >
               Submit
-            </button>
+            </Button>
           </div>
         </footer>
       </main>

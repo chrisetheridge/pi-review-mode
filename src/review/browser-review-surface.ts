@@ -16,16 +16,22 @@ export interface BrowserReviewSurfaceOptions {
   readonly opener?: BrowserOpener;
   readonly onSubmitPrompt?: (prompt: string) => Promise<void> | void;
   readonly serverFactory?: (snapshot: ReviewSnapshot) => BrowserReviewServer;
+  readonly webDevServerUrl?: string;
 }
 
 export async function openBrowserReviewSurface(
   snapshot: ReviewSnapshot,
   options: BrowserReviewSurfaceOptions = {}
 ): Promise<ReviewServerResult> {
+  const webDevServerUrl =
+    options.webDevServerUrl ?? process.env.PI_REVIEW_WEB_DEV_SERVER;
   const server =
     options.serverFactory?.(snapshot) ??
     new ReviewServer(snapshot, {
-      assetsDir: options.assetsDir ?? defaultAssetsDir()
+      assetsDir:
+        options.assetsDir ??
+        (webDevServerUrl ? process.cwd() : defaultAssetsDir()),
+      webDevServerUrl
     });
 
   try {

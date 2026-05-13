@@ -64,6 +64,7 @@ export interface ReviewFileSnapshot {
   readonly path: string;
   readonly oldPath?: string;
   readonly metadata: readonly string[];
+  readonly patch: string;
   readonly additions: number;
   readonly deletions: number;
   readonly binary: boolean;

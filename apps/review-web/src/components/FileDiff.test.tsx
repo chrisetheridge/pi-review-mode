@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ReviewFileSnapshot } from "../types";
@@ -68,13 +68,68 @@ const file: ReviewFileSnapshot = {
 };
 
 describe("FileDiff", () => {
-  it("renders context, delete, and add rows", () => {
+  it("renders compact file chrome plus context, delete, and add rows", async () => {
     render(
       <FileDiff
         file={file}
         collapsed={false}
         comments={[]}
         activeEditors={[]}
+        viewed={false}
+        onToggleViewed={vi.fn()}
+        onToggleCollapse={vi.fn()}
+        onStartComment={vi.fn()}
+        onCancelEditor={vi.fn()}
+        onSaveComment={vi.fn()}
+        onDeleteComment={vi.fn()}
+      />
+    );
+
+    await screen.findByTestId("diff-view-src/app.ts");
+    expect(
+      screen.getByRole("checkbox", { name: "Viewed src/app.ts" })
+    ).toBeTruthy();
+    expect(screen.getByText("+1 -1")).toBeTruthy();
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("const keep = true");
+    expect(text).toContain("const oldValue = 1");
+    expect(text).toContain("const newValue = 2");
+  });
+
+  it("toggles the viewed checkbox", async () => {
+    const onToggleViewed = vi.fn();
+    const { rerender } = render(
+      <FileDiff
+        file={file}
+        collapsed={false}
+        comments={[]}
+        activeEditors={[]}
+        viewed={false}
+        onToggleViewed={onToggleViewed}
+        onToggleCollapse={vi.fn()}
+        onStartComment={vi.fn()}
+        onCancelEditor={vi.fn()}
+        onSaveComment={vi.fn()}
+        onDeleteComment={vi.fn()}
+      />
+    );
+
+    const viewed = screen.getByRole<HTMLInputElement>("checkbox", {
+      name: "Viewed src/app.ts"
+    });
+    expect(viewed.checked).toBe(false);
+
+    await userEvent.click(viewed);
+    expect(onToggleViewed).toHaveBeenCalledWith(file.path);
+
+    rerender(
+      <FileDiff
+        file={file}
+        collapsed={false}
+        comments={[]}
+        activeEditors={[]}
+        viewed={true}
+        onToggleViewed={onToggleViewed}
         onToggleCollapse={vi.fn()}
         onStartComment={vi.fn()}
         onCancelEditor={vi.fn()}
@@ -84,20 +139,10 @@ describe("FileDiff", () => {
     );
 
     expect(
-      screen
-        .getByRole("button", { name: /row 0/i })
-        .getAttribute("data-row-type")
-    ).toBe("context");
-    expect(
-      screen
-        .getByRole("button", { name: /row 1/i })
-        .getAttribute("data-row-type")
-    ).toBe("delete");
-    expect(
-      screen
-        .getByRole("button", { name: /row 2/i })
-        .getAttribute("data-row-type")
-    ).toBe("add");
+      screen.getByRole<HTMLInputElement>("checkbox", {
+        name: "Viewed src/app.ts"
+      }).checked
+    ).toBe(true);
   });
 
   it("saves file-level comments", async () => {
@@ -109,6 +154,8 @@ describe("FileDiff", () => {
         collapsed={false}
         comments={[]}
         activeEditors={[]}
+        viewed={false}
+        onToggleViewed={vi.fn()}
         onToggleCollapse={vi.fn()}
         onStartComment={onStartComment}
         onCancelEditor={vi.fn()}
@@ -128,6 +175,8 @@ describe("FileDiff", () => {
         collapsed={false}
         comments={[]}
         activeEditors={[{ anchor: file.fileAnchor }]}
+        viewed={false}
+        onToggleViewed={vi.fn()}
         onToggleCollapse={vi.fn()}
         onStartComment={onStartComment}
         onCancelEditor={vi.fn()}
@@ -154,6 +203,8 @@ describe("FileDiff", () => {
         collapsed={false}
         comments={[]}
         activeEditors={[]}
+        viewed={false}
+        onToggleViewed={vi.fn()}
         onToggleCollapse={vi.fn()}
         onStartComment={onStartComment}
         onCancelEditor={vi.fn()}
@@ -162,7 +213,7 @@ describe("FileDiff", () => {
       />
     );
 
-    await userEvent.click(screen.getByRole("button", { name: /row 2/i }));
+    await userEvent.click(screen.getAllByRole("button", { name: "+" })[2]);
     expect(onStartComment).toHaveBeenCalledWith(lineAnchor);
 
     rerender(
@@ -171,6 +222,8 @@ describe("FileDiff", () => {
         collapsed={false}
         comments={[]}
         activeEditors={[{ anchor: lineAnchor }]}
+        viewed={false}
+        onToggleViewed={vi.fn()}
         onToggleCollapse={vi.fn()}
         onStartComment={onStartComment}
         onCancelEditor={vi.fn()}
@@ -179,11 +232,7 @@ describe("FileDiff", () => {
       />
     );
 
-    const row = screen.getByTestId("diff-row-wrap-row-3");
-    await userEvent.type(
-      within(row).getByLabelText("Comment text"),
-      "Line note"
-    );
+    await userEvent.type(screen.getByLabelText("Comment text"), "Line note");
     await userEvent.keyboard("{Meta>}{Enter}{/Meta}");
 
     await waitFor(() =>
@@ -198,6 +247,8 @@ describe("FileDiff", () => {
         collapsed={false}
         comments={[]}
         activeEditors={[]}
+        viewed={false}
+        onToggleViewed={vi.fn()}
         onToggleCollapse={vi.fn()}
         onStartComment={vi.fn()}
         onCancelEditor={vi.fn()}

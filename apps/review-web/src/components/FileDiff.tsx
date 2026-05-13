@@ -1,3 +1,16 @@
+import { DiffModeEnum, DiffView, SplitSide } from "@git-diff-view/react";
+import "@git-diff-view/react/styles/diff-view-pure.css";
+import {
+  CheckSquare,
+  ChevronDown,
+  ChevronUp,
+  MessageSquareMore,
+  Square
+} from "lucide-react";
+import { useMemo } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { DiffAnchor, ReviewFileSnapshot, SavedComment } from "../types";
 import { CommentEditor } from "./CommentEditor";
 import { SavedCommentCard } from "./SavedCommentCard";
@@ -11,54 +24,91 @@ interface FileDiffProps {
   collapsed: boolean;
   comments: SavedComment[];
   activeEditors: ActiveEditor[];
+  viewed: boolean;
+  onToggleViewed: (path: string) => void;
   onToggleCollapse: (path: string) => void;
   onStartComment: (anchor: DiffAnchor) => void;
   onCancelEditor: (anchorId: string) => void;
   onSaveComment: (anchor: DiffAnchor, body: string) => Promise<void> | void;
   onDeleteComment: (anchorId: string) => Promise<void> | void;
+  theme?: "light" | "dark";
 }
 
-function lineNumber(value?: number) {
-  return value == null ? "" : String(value);
-}
+type ExtendItem =
+  | { type: "comment"; comment: SavedComment; anchor: DiffAnchor }
+  | { type: "editor"; anchor: DiffAnchor };
 
-function rowPrefix(type: string) {
-  if (type === "add") return "+";
-  if (type === "delete") return "-";
-  return " ";
-}
-
-function rowClasses(type: string) {
-  if (type === "add") return "bg-emerald-950/45 hover:bg-emerald-900/45";
-  if (type === "delete") return "bg-red-950/45 hover:bg-red-900/45";
-  return "bg-transparent hover:bg-[#2a3548]";
-}
-
-function gutterClasses(type: string) {
-  if (type === "add") return "border-emerald-300/20 text-emerald-100";
-  if (type === "delete") return "border-red-300/20 text-red-100";
-  return "border-transparent text-[#8c909f]";
-}
-
-const statusClasses: Record<string, string> = {
-  added: "bg-[#d9f7e8] text-[#0b6b3a]",
-  deleted: "bg-[#ffe3e3] text-[#a61b1b]",
-  renamed: "bg-[#fff0c2] text-[#8a5d00]",
-  copied: "bg-[#e8f2ff] text-[#334e68]",
-  binary: "bg-[#2a3548] text-[#d8e3fb]",
-  modified: "bg-[#eef2f6] text-[#334e68]"
+type ExtendData = {
+  oldFile?: Record<string, { data: ExtendItem[] }>;
+  newFile?: Record<string, { data: ExtendItem[] }>;
 };
+
+function sideKey(side: "old" | "new") {
+  return side === "old" ? "oldFile" : "newFile";
+}
+
+function addExtendItem(
+  extendData: ExtendData,
+  anchor: DiffAnchor,
+  item: ExtendItem
+) {
+  if (anchor.side !== "old" && anchor.side !== "new") return;
+  const lineNumber =
+    anchor.side === "old" ? anchor.oldLineNumber : anchor.newLineNumber;
+  if (lineNumber == null) return;
+  const key = sideKey(anchor.side);
+  extendData[key] ??= {};
+  const lineKey = String(lineNumber);
+  const existing = extendData[key]?.[lineKey]?.data ?? [];
+  extendData[key] = {
+    ...extendData[key],
+    [lineKey]: { data: [...existing, item] }
+  };
+}
+
+function buildAnchorIndex(file: ReviewFileSnapshot) {
+  const old = new Map<number, DiffAnchor>();
+  const next = new Map<number, DiffAnchor>();
+  for (const hunk of file.hunks) {
+    for (const row of hunk.rows) {
+      if (row.oldLineNumber != null) old.set(row.oldLineNumber, row.anchor);
+      if (row.newLineNumber != null) next.set(row.newLineNumber, row.anchor);
+    }
+  }
+  return { old, new: next };
+}
+
+function fallbackPatch(file: ReviewFileSnapshot) {
+  const oldPath = file.oldPath ?? file.path;
+  const lines = [
+    `diff --git a/${oldPath} b/${file.path}`,
+    `--- a/${oldPath}`,
+    `+++ b/${file.path}`
+  ];
+  for (const hunk of file.hunks) {
+    lines.push(hunk.header);
+    for (const row of hunk.rows) {
+      const prefix =
+        row.type === "add" ? "+" : row.type === "delete" ? "-" : " ";
+      lines.push(`${prefix}${row.text}`);
+    }
+  }
+  return `${lines.join("\n")}\n`;
+}
 
 export function FileDiff({
   file,
   collapsed,
   comments,
   activeEditors,
+  viewed,
+  onToggleViewed,
   onToggleCollapse,
   onStartComment,
   onCancelEditor,
   onSaveComment,
-  onDeleteComment
+  onDeleteComment,
+  theme = "dark"
 }: FileDiffProps) {
   const commentsByAnchor = comments.reduce<Record<string, SavedComment[]>>(
     (acc, comment) => {
@@ -75,11 +125,34 @@ export function FileDiff({
     {}
   );
 
+  const anchorIndex = useMemo(() => buildAnchorIndex(file), [file]);
+  const extendData = useMemo<ExtendData>(() => {
+    const data: ExtendData = { oldFile: {}, newFile: {} };
+    for (const comment of comments) {
+      const anchor = findAnchorById(file, comment.anchorId);
+      if (anchor)
+        addExtendItem(data, anchor, { type: "comment", comment, anchor });
+    }
+    for (const editor of activeEditors) {
+      addExtendItem(data, editor.anchor, {
+        type: "editor",
+        anchor: editor.anchor
+      });
+    }
+    return data;
+  }, [file, comments, activeEditors]);
+
+  function findLineAnchor(lineNumber: number, side: SplitSide) {
+    return side === SplitSide.old
+      ? anchorIndex.old.get(lineNumber)
+      : anchorIndex.new.get(lineNumber);
+  }
+
   function renderCommentSurface(anchor: DiffAnchor) {
     const saved = commentsByAnchor[anchor.id] ?? [];
     const editor = editorsByAnchor[anchor.id];
     return (
-      <div className="ml-[140px] py-2 pr-4 max-[800px]:ml-0 max-[800px]:pl-3">
+      <div className="ml-[140px] max-[800px]:ml-0 max-[800px]:pl-3">
         {saved.map((comment) => (
           <SavedCommentCard
             key={comment.id}
@@ -101,105 +174,150 @@ export function FileDiff({
 
   return (
     <section
-      className="mb-4 overflow-hidden rounded-lg border border-[#424754] bg-[#111c2d]"
+      className="mb-4 overflow-hidden border border-border bg-card text-card-foreground shadow-xs"
       aria-label={`Diff for ${file.path}`}
     >
-      <header className="grid grid-cols-[36px_minmax(0,1fr)_auto_auto] items-center gap-3 border-[#424754] border-b px-3.5 py-3">
-        <button
+      <header className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 border-border border-b bg-muted/50 px-3.5 py-2">
+        <Button
           type="button"
-          className="text-[#c2c6d6] hover:text-[#adc6ff]"
+          variant="ghost"
+          size="icon-sm"
           aria-label={`${collapsed ? "Expand" : "Collapse"} ${file.path}`}
           onClick={() => onToggleCollapse(file.path)}
         >
-          {collapsed ? "+" : "-"}
-        </button>
-        <div>
-          <h2 className="m-0 break-words text-base font-bold">{file.path}</h2>
+          {collapsed ? (
+            <ChevronUp aria-hidden="true" className="size-4" />
+          ) : (
+            <ChevronDown aria-hidden="true" className="size-4" />
+          )}
+        </Button>
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <h2 className="m-0 truncate font-mono text-[0.92rem] font-semibold">
+              {file.path}
+            </h2>
+          </div>
           {file.oldPath && file.oldPath !== file.path ? (
-            <p className="mt-1 text-[#c2c6d6] text-sm">
+            <p className="mt-1 text-muted-foreground text-xs">
               Renamed from {file.oldPath}
             </p>
           ) : null}
         </div>
-        <span
-          className={`inline-flex h-[22px] min-w-[22px] items-center justify-center rounded px-1.5 font-extrabold text-xs ${
-            statusClasses[file.status] ?? statusClasses.modified
-          }`}
-        >
-          {file.status}
-        </span>
-        <span className="font-mono text-[#8c909f] text-sm">
-          +{file.additions} -{file.deletions}
-        </span>
+        <div className="flex items-center gap-2">
+          <Badge
+            variant="outline"
+            className="font-mono text-xs text-muted-foreground"
+          >
+            <span className="sr-only">
+              +{file.additions} -{file.deletions}
+            </span>
+            <span aria-hidden="true" className="font-semibold text-[#1a7f37]">
+              +{file.additions}
+            </span>{" "}
+            <span aria-hidden="true" className="font-semibold text-[#cf222e]">
+              -{file.deletions}
+            </span>
+          </Badge>
+          <label
+            className={cn(
+              "inline-flex min-h-8 items-center gap-1 border px-2.5 text-sm transition-colors hover:bg-muted",
+              viewed
+                ? "border-primary/20 bg-primary/10 text-primary"
+                : "border-border bg-background text-muted-foreground"
+            )}
+          >
+            <input
+              type="checkbox"
+              className="sr-only"
+              checked={viewed}
+              aria-label={`Viewed ${file.path}`}
+              onChange={() => onToggleViewed(file.path)}
+            />
+            {viewed ? (
+              <CheckSquare aria-hidden="true" className="size-4" />
+            ) : (
+              <Square aria-hidden="true" className="size-4" />
+            )}
+            Viewed
+          </label>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Add file comment"
+            onClick={() => onStartComment(file.fileAnchor)}
+          >
+            <MessageSquareMore aria-hidden="true" className="size-4" />
+          </Button>
+        </div>
       </header>
       {collapsed ? null : (
         <div>
-          <div className="border-[#424754] border-b px-3.5 py-3">
-            <button
-              type="button"
-              className="min-h-8 rounded-md border border-[#424754] bg-[#1f2a3c] px-3 font-bold text-[#d8e3fb] hover:border-[#adc6ff]"
-              onClick={() => onStartComment(file.fileAnchor)}
-            >
-              Add file comment
-            </button>
-            {renderCommentSurface(file.fileAnchor)}
-          </div>
+          {renderCommentSurface(file.fileAnchor)}
           {file.binary ? (
-            <div className="px-3.5 py-5 text-[#c2c6d6]">
+            <div className="px-3.5 py-5 text-muted-foreground">
               Binary file. Line comments are unavailable.
             </div>
           ) : (
-            file.hunks.map((hunk) => (
-              <div
-                className="min-w-0"
-                key={`${file.path}-${hunk.rows[0]?.anchor.id ?? hunk.header}`}
-              >
-                <div className="bg-[#1f2a3c] px-3.5 py-2 font-mono text-[#adc6ff] text-sm">
-                  {hunk.header}
-                </div>
-                {hunk.rows.map((row) => (
-                  <div
-                    key={row.anchor.id}
-                    data-testid={`diff-row-wrap-${row.anchor.id}`}
-                  >
-                    <button
-                      type="button"
-                      className={`grid min-h-7 w-full grid-cols-[58px_58px_24px_minmax(0,1fr)] border-[#253246] border-t text-left font-mono text-sm leading-6 ${rowClasses(
-                        row.type
-                      )}`}
-                      data-row-type={row.type}
-                      onClick={() => onStartComment(row.anchor)}
-                      aria-label={`Comment on ${file.path} row ${row.anchor.rowIndex ?? ""}`}
-                    >
-                      <span
-                        className={`border-r px-2 py-1 text-right select-none ${gutterClasses(
-                          row.type
-                        )}`}
-                      >
-                        {lineNumber(row.oldLineNumber)}
-                      </span>
-                      <span
-                        className={`border-r px-2 py-1 text-right select-none ${gutterClasses(
-                          row.type
-                        )}`}
-                      >
-                        {lineNumber(row.newLineNumber)}
-                      </span>
-                      <span className="px-2 py-1 text-center text-[#8c909f] select-none">
-                        {rowPrefix(row.type)}
-                      </span>
-                      <code className="min-w-0 overflow-x-auto px-2 py-1 whitespace-pre text-[#d8e3fb]">
-                        {row.text}
-                      </code>
-                    </button>
-                    {renderCommentSurface(row.anchor)}
-                  </div>
-                ))}
-              </div>
-            ))
+            <div
+              className="review-diff-view"
+              data-testid={`diff-view-${file.path}`}
+            >
+              <DiffView<ExtendItem[]>
+                data={{
+                  oldFile: { fileName: file.oldPath ?? file.path, content: "" },
+                  newFile: { fileName: file.path, content: "" },
+                  hunks: [file.patch ?? fallbackPatch(file)]
+                }}
+                diffViewMode={DiffModeEnum.Unified}
+                diffViewTheme={theme}
+                diffViewHighlight
+                diffViewWrap={false}
+                diffViewAddWidget
+                extendData={extendData}
+                onAddWidgetClick={(lineNumber, side) => {
+                  const anchor = findLineAnchor(lineNumber, side);
+                  if (anchor) onStartComment(anchor);
+                }}
+                renderExtendLine={({ data }) => {
+                  if (!data?.length) return null;
+                  return (
+                    <div className="border-border border-y bg-card px-4 py-2">
+                      {data.map((item) =>
+                        item.type === "comment" ? (
+                          <SavedCommentCard
+                            key={item.comment.id}
+                            comment={item.comment}
+                            anchor={item.anchor}
+                            onDelete={onDeleteComment}
+                            onSave={onSaveComment}
+                          />
+                        ) : (
+                          <CommentEditor
+                            key={`editor-${item.anchor.id}`}
+                            onCancel={() => onCancelEditor(item.anchor.id)}
+                            onSave={(body) => onSaveComment(item.anchor, body)}
+                          />
+                        )
+                      )}
+                    </div>
+                  );
+                }}
+              />
+            </div>
           )}
         </div>
       )}
     </section>
   );
+}
+
+function findAnchorById(file: ReviewFileSnapshot, anchorId: string) {
+  if (file.fileAnchor.id === anchorId) return file.fileAnchor;
+  for (const hunk of file.hunks) {
+    for (const row of hunk.rows) {
+      if (row.anchor.id === anchorId) return row.anchor;
+    }
+  }
+  return undefined;
 }

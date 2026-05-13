@@ -123,6 +123,28 @@ export function useReviewSurfaceState({
     });
   }
 
+  function collapsePath(path: string) {
+    setCollapsedPaths((current) => {
+      if (current.has(path)) {
+        return current;
+      }
+      const next = new Set(current);
+      next.add(path);
+      return next;
+    });
+  }
+
+  function expandPath(path: string) {
+    setCollapsedPaths((current) => {
+      if (!current.has(path)) {
+        return current;
+      }
+      const next = new Set(current);
+      next.delete(path);
+      return next;
+    });
+  }
+
   async function closeReview() {
     await api.close();
   }
@@ -164,6 +186,8 @@ export function useReviewSurfaceState({
     saveComment,
     deleteComment,
     toggleCollapse,
+    collapsePath,
+    expandPath,
     closeReview,
     submitReview
   };

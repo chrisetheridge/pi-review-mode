@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 interface CommentEditorProps {
   initialBody?: string;
@@ -34,15 +36,15 @@ export function CommentEditor({
 
   return (
     <form
-      className="mt-2 max-w-[720px] overflow-hidden rounded-lg border border-[#424754] bg-[#081425]"
+      className="mt-2 max-w-[720px] overflow-hidden border border-border bg-card text-card-foreground shadow-xs"
       onSubmit={(event) => {
         event.preventDefault();
         void save();
       }}
     >
-      <textarea
+      <Textarea
         ref={textareaRef}
-        className="block min-h-[86px] w-full resize-y rounded-t-lg border-0 border-[#424754] border-b bg-[#081425] p-2.5 text-[#d8e3fb] outline-none placeholder:text-[#8c909f] focus:border-[#adc6ff]"
+        className="min-h-[86px] resize-y rounded-none border-0 border-border border-b bg-card focus-visible:ring-0"
         aria-label="Comment text"
         value={body}
         onChange={(event) => setBody(event.target.value)}
@@ -59,20 +61,12 @@ export function CommentEditor({
         placeholder="Add review feedback"
       />
       <div className="flex justify-end gap-2 p-2">
-        <button
-          type="button"
-          className="min-h-8 rounded-md border border-[#424754] px-3 font-bold text-[#c2c6d6] hover:border-[#adc6ff]"
-          onClick={onCancel}
-        >
+        <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
-        </button>
-        <button
-          type="submit"
-          className="min-h-8 rounded-md border border-[#adc6ff] bg-[#adc6ff] px-3 font-bold text-[#002e6a] disabled:cursor-not-allowed disabled:opacity-55"
-          disabled={!body.trim() || saving}
-        >
+        </Button>
+        <Button type="submit" disabled={!body.trim() || saving}>
           {saving ? "Saving..." : "Save"}
-        </button>
+        </Button>
       </div>
     </form>
   );

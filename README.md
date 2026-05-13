@@ -23,6 +23,21 @@ pnpm build
 pi -e ./
 ```
 
+For browser UI work with Vite hot reload, run the web dev server in one terminal:
+
+```sh
+pnpm dev:web
+```
+
+Then run Pi with the dev server URL in another terminal:
+
+```sh
+pnpm build:extension
+PI_REVIEW_WEB_DEV_SERVER=http://127.0.0.1:5173 pi -e ./
+```
+
+The extension still owns the tokenized API on `127.0.0.1`; the Vite app receives the API origin through `apiBaseUrl` in the review URL.
+
 Run a repeatable development-only fixture review without editing files:
 
 ```sh

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ReviewFileSnapshot } from "../types";
@@ -13,6 +13,19 @@ const files: ReviewFileSnapshot[] = [
     binary: false,
     hunks: [],
     fileAnchor: { id: "file-src/app.ts", filePath: "src/app.ts", side: "file" }
+  },
+  {
+    path: "src/components/Button.tsx",
+    status: "added",
+    additions: 12,
+    deletions: 0,
+    binary: false,
+    hunks: [],
+    fileAnchor: {
+      id: "file-src/components/Button.tsx",
+      filePath: "src/components/Button.tsx",
+      side: "file"
+    }
   },
   {
     path: "assets/logo.png",
@@ -30,7 +43,7 @@ const files: ReviewFileSnapshot[] = [
 ];
 
 describe("FileTree", () => {
-  it("renders file status, stats, comment counts, and selection", async () => {
+  it("renders folders, file status, stats, comment counts, and selection", async () => {
     const onSelect = vi.fn();
     render(
       <FileTree
@@ -46,18 +59,50 @@ describe("FileTree", () => {
       />
     );
 
+    expect(screen.getByRole("treeitem", { name: "src" })).toBeTruthy();
+    expect(screen.getByRole("treeitem", { name: "components" })).toBeTruthy();
+
     const selectedItem = screen.getByRole("button", {
       name: /selected.*src\/app\.ts/i
     });
     expect(selectedItem.getAttribute("aria-current")).toBe("true");
-    expect(screen.getByText("+4 -1")).toBeTruthy();
-    expect(screen.getByText("2 comments")).toBeTruthy();
+    expect(within(selectedItem).getByText("M")).toBeTruthy();
+    expect(within(selectedItem).getByText("+4 -1")).toBeTruthy();
+    expect(within(selectedItem).getByText("2 comments")).toBeTruthy();
 
     const logoItem = screen.getByRole("button", {
       name: /^assets\/logo\.png$/i
     });
     await userEvent.click(logoItem);
     expect(onSelect).toHaveBeenCalledWith("assets/logo.png");
+  });
+
+  it("filters files while preserving matching folder context", async () => {
+    render(
+      <FileTree
+        files={files}
+        comments={[]}
+        selectedPath={null}
+        collapsedPaths={new Set()}
+        onSelect={vi.fn()}
+        onToggleCollapse={vi.fn()}
+      />
+    );
+
+    await userEvent.type(
+      screen.getByRole("searchbox", { name: "Filter files" }),
+      "button"
+    );
+
+    expect(screen.getByRole("treeitem", { name: "src" })).toBeTruthy();
+    expect(screen.getByRole("treeitem", { name: "components" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /^src\/components\/Button\.tsx$/i })
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /src\/app\.ts/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /assets\/logo\.png/i })
+    ).toBeNull();
   });
 
   it("toggles collapsed files", async () => {
@@ -77,5 +122,36 @@ describe("FileTree", () => {
       screen.getByRole("button", { name: "Expand assets/logo.png" })
     );
     expect(onToggleCollapse).toHaveBeenCalledWith("assets/logo.png");
+  });
+
+  it("collapses and expands folders in the tree", async () => {
+    render(
+      <FileTree
+        files={files}
+        comments={[]}
+        selectedPath={null}
+        collapsedPaths={new Set()}
+        onSelect={vi.fn()}
+        onToggleCollapse={vi.fn()}
+      />
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Collapse src folder" })
+    );
+
+    expect(screen.queryByRole("treeitem", { name: "components" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /^src\/app\.ts$/i })
+    ).toBeNull();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Expand src folder" })
+    );
+
+    expect(screen.getByRole("treeitem", { name: "components" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /^src\/app\.ts$/i })
+    ).toBeTruthy();
   });
 });

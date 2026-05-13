@@ -14,6 +14,7 @@ export interface ReviewServerOptions {
   readonly assetsDir: string;
   readonly port?: number;
   readonly session?: ReviewSession;
+  readonly webDevServerUrl?: string;
 }
 
 export interface ReviewServerResult {
@@ -25,6 +26,8 @@ export class ReviewServer {
   readonly session: ReviewSession;
   private readonly assetsDir: string;
   private readonly port: number;
+  private readonly webDevServerUrl?: string;
+  private readonly webDevServerOrigin?: string;
   private server?: Server;
   private closeTimer?: NodeJS.Timeout;
   private expiryTimer?: NodeJS.Timeout;
@@ -35,6 +38,10 @@ export class ReviewServer {
   constructor(snapshot: ReviewSnapshot, options: ReviewServerOptions) {
     this.assetsDir = options.assetsDir;
     this.port = options.port ?? 0;
+    this.webDevServerUrl = options.webDevServerUrl;
+    this.webDevServerOrigin = options.webDevServerUrl
+      ? new URL(options.webDevServerUrl).origin
+      : undefined;
     this.completion = new Promise<ReviewServerResult>((resolve) => {
       this.complete = resolve;
     });
@@ -65,8 +72,12 @@ export class ReviewServer {
     if (!address || typeof address === "string") {
       throw new Error("Unable to determine review server address.");
     }
+    const apiBaseUrl = `http://127.0.0.1:${address.port}`;
+    const url = this.webDevServerUrl
+      ? devServerReviewUrl(this.webDevServerUrl, this.session.token, apiBaseUrl)
+      : `${apiBaseUrl}/?token=${encodeURIComponent(this.session.token)}`;
     return {
-      url: `http://127.0.0.1:${address.port}/?token=${encodeURIComponent(this.session.token)}`,
+      url,
       port: address.port,
       token: this.session.token
     };
@@ -95,6 +106,12 @@ export class ReviewServer {
   ): Promise<void> {
     try {
       const url = new URL(request.url ?? "/", "http://127.0.0.1");
+      this.writeCorsHeaders(request, response);
+      if (request.method === "OPTIONS" && url.pathname.startsWith("/api/")) {
+        response.statusCode = 204;
+        response.end();
+        return;
+      }
       if (url.pathname.startsWith("/api/")) {
         await this.handleApi(request, response, url);
         return;
@@ -177,6 +194,24 @@ export class ReviewServer {
     sendJson(response, 404, { error: "Not found." });
   }
 
+  private writeCorsHeaders(
+    request: IncomingMessage,
+    response: ServerResponse
+  ): void {
+    if (!this.webDevServerOrigin) return;
+    if (request.headers.origin !== this.webDevServerOrigin) return;
+    response.setHeader("access-control-allow-origin", this.webDevServerOrigin);
+    response.setHeader(
+      "access-control-allow-methods",
+      "GET,POST,DELETE,OPTIONS"
+    );
+    response.setHeader(
+      "access-control-allow-headers",
+      "content-type,authorization"
+    );
+    response.setHeader("vary", "Origin");
+  }
+
   private serveAsset(pathname: string, response: ServerResponse): void {
     const requestPath = pathname === "/" ? "/index.html" : pathname;
     const normalized = normalize(requestPath).replace(/^(\.\.[/\\])+/, "");
@@ -214,6 +249,17 @@ export class ReviewServer {
     this.result = result;
     this.complete(result);
   }
+}
+
+function devServerReviewUrl(
+  webDevServerUrl: string,
+  token: string,
+  apiBaseUrl: string
+): string {
+  const url = new URL(webDevServerUrl);
+  url.searchParams.set("token", token);
+  url.searchParams.set("apiBaseUrl", apiBaseUrl);
+  return url.toString();
 }
 
 function tokenFromRequest(

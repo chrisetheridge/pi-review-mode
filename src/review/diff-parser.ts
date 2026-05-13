@@ -25,14 +25,20 @@ interface GitDiffParser {
 export function parseReviewDiff(diff: string): ReviewFileSnapshot[] {
   const parsedFiles = gitDiffParser.parse(diff);
   const metadataByFile = collectMetadata(diff);
+  const patchesByFile = collectFilePatches(diff);
   return parsedFiles.map((file, fileIndex) =>
-    toReviewFile(file, metadataByFile[fileIndex] ?? [])
+    toReviewFile(
+      file,
+      metadataByFile[fileIndex] ?? [],
+      patchesByFile[fileIndex] ?? ""
+    )
   );
 }
 
 function toReviewFile(
   file: GitDiffFile,
-  metadata: readonly string[]
+  metadata: readonly string[],
+  patch: string
 ): ReviewFileSnapshot {
   const path = stripGitPath(
     file.newPath === "/dev/null" ? file.oldPath : file.newPath
@@ -102,11 +108,26 @@ function toReviewFile(
     path,
     oldPath,
     metadata,
+    patch,
     additions,
     deletions,
     binary,
     hunks
   };
+}
+
+function collectFilePatches(diff: string): string[] {
+  const starts: number[] = [];
+  const pattern = /^diff --git /gm;
+  let match = pattern.exec(diff);
+  while (match !== null) {
+    starts.push(match.index);
+    match = pattern.exec(diff);
+  }
+  return starts.map((start, index) => {
+    const end = starts[index + 1] ?? diff.length;
+    return diff.slice(start, end).replace(/\n?$/, "\n");
+  });
 }
 
 function collectMetadata(diff: string): string[][] {

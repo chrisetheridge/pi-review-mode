@@ -25,7 +25,16 @@ export function readTokenFromLocation(
   return new URLSearchParams(location.search).get("token") ?? "";
 }
 
-export function createReviewApi(token: string, baseUrl = "") {
+export function readApiBaseUrlFromLocation(
+  location: Location = window.location
+): string {
+  return new URLSearchParams(location.search).get("apiBaseUrl") ?? "";
+}
+
+export function createReviewApi(
+  token: string,
+  baseUrl = readApiBaseUrlFromLocation()
+) {
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const url = new URL(`/api${path}`, window.location.origin);
     if (baseUrl) {
@@ -95,7 +104,8 @@ export function createReviewApi(token: string, baseUrl = "") {
 export type ReviewApi = ReturnType<typeof createReviewApi>;
 
 export function closeReviewWithBeacon(token: string): void {
-  const url = new URL("/api/close", window.location.origin);
+  const apiBaseUrl = readApiBaseUrlFromLocation();
+  const url = new URL("/api/close", apiBaseUrl || window.location.origin);
   url.searchParams.set("token", token);
   const payload = new Blob(["{}"], { type: "application/json" });
   if (navigator.sendBeacon?.(url.toString(), payload)) {

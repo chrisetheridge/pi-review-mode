@@ -16,6 +16,8 @@ index 7898192..422c2b7 100644
 `);
 
     expect(file.path).toBe("a.txt");
+    expect(file.patch).toContain("diff --git a/a.txt b/a.txt");
+    expect(file.patch).toContain("@@ -1,3 +1,4 @@");
     expect(file.additions).toBe(2);
     expect(file.deletions).toBe(1);
     const sameRows = file.hunks[0].rows.filter((row) => row.text === "same");

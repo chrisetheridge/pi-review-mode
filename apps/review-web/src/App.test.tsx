@@ -1,6 +1,6 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import type { ReviewApi } from "./api";
 import type { ReviewSnapshot, SavedComment } from "./types";
@@ -70,6 +70,10 @@ function makeApi(overrides: Partial<ReviewApi> = {}): ReviewApi {
 }
 
 describe("App", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it("blocks submit with no saved comments", async () => {
     const api = makeApi();
     render(<App api={api} token="test-token" />);
@@ -78,19 +82,38 @@ describe("App", () => {
     expect(submit.hasAttribute("disabled")).toBe(true);
   });
 
-  it("renders the production dark review shell with the unified diff", async () => {
+  it("renders the primary light review shell with the unified diff", async () => {
     const api = makeApi();
     render(<App api={api} token="test-token" />);
 
-    expect(await screen.findByText("Pi Review Mode")).toBeTruthy();
+    expect(await screen.findByText("Review changes")).toBeTruthy();
+    expect(screen.queryByText("Pi Review Mode")).toBeNull();
     expect(
       screen.getByRole("navigation", { name: "Changed files" })
     ).toBeTruthy();
+    expect(
+      screen.getByRole("searchbox", { name: "Filter files" })
+    ).toBeTruthy();
     expect(screen.getByRole("region", { name: "Unified diff" })).toBeTruthy();
-    expect(screen.getByText("const value = 1;")).toBeTruthy();
+    expect(document.body.textContent).toContain("const value = 1");
     expect(
       screen.queryByRole("toolbar", { name: "Prototype variants" })
     ).toBeNull();
+  });
+
+  it("defaults to light mode and switches to dark mode", async () => {
+    const api = makeApi();
+    render(<App api={api} token="test-token" />);
+
+    const toggle = await screen.findByRole("button", { name: "Use dark mode" });
+    const shell = screen.getByTestId("review-app-shell");
+    expect(shell.classList.contains("dark")).toBe(false);
+
+    await userEvent.click(toggle);
+
+    expect(window.localStorage.getItem("pi-review-mode-theme")).toBe("dark");
+    expect(shell.classList.contains("dark")).toBe(true);
+    expect(screen.getByRole("button", { name: "Use light mode" })).toBeTruthy();
   });
 
   it("blocks submit while unsaved editors exist", async () => {
@@ -107,10 +130,60 @@ describe("App", () => {
     render(<App api={api} token="test-token" />);
 
     await screen.findByText("Saved");
-    await userEvent.click(screen.getByRole("button", { name: /row 0/i }));
+    await userEvent.click(screen.getByRole("button", { name: "+" }));
 
     const submit = screen.getByRole("button", { name: "Submit" });
     expect(submit.hasAttribute("disabled")).toBe(true);
+  });
+
+  it("collapses files from the sidebar toggle", async () => {
+    const api = makeApi();
+    render(<App api={api} token="test-token" />);
+
+    expect(await screen.findByTestId("diff-view-src/app.ts")).toBeTruthy();
+
+    await userEvent.click(
+      screen.getAllByRole("button", { name: "Collapse src/app.ts" })[0]
+    );
+
+    expect(screen.queryByTestId("diff-view-src/app.ts")).toBeNull();
+    expect(
+      screen.getAllByRole("button", { name: "Expand src/app.ts" }).length
+    ).toBeGreaterThan(0);
+  });
+
+  it("marks viewed files as collapsed and reopens them when unmarked", async () => {
+    const api = makeApi();
+    render(<App api={api} token="test-token" />);
+
+    expect(await screen.findByTestId("diff-view-src/app.ts")).toBeTruthy();
+
+    const viewed = await screen.findByRole<HTMLInputElement>("checkbox", {
+      name: "Viewed src/app.ts"
+    });
+    expect(viewed.checked).toBe(false);
+
+    await userEvent.click(viewed);
+
+    expect(
+      screen.getByRole<HTMLInputElement>("checkbox", {
+        name: "Viewed src/app.ts"
+      }).checked
+    ).toBe(true);
+    expect(screen.queryByTestId("diff-view-src/app.ts")).toBeNull();
+
+    await userEvent.click(
+      screen.getByRole<HTMLInputElement>("checkbox", {
+        name: "Viewed src/app.ts"
+      })
+    );
+
+    expect(
+      screen.getByRole<HTMLInputElement>("checkbox", {
+        name: "Viewed src/app.ts"
+      }).checked
+    ).toBe(false);
+    expect(await screen.findByTestId("diff-view-src/app.ts")).toBeTruthy();
   });
 
   it("saves file-level comments through the API", async () => {
@@ -139,11 +212,10 @@ describe("App", () => {
     const api = makeApi();
     render(<App api={api} token="test-token" />);
 
-    const rowButton = await screen.findByRole("button", { name: /row 0/i });
+    const rowButton = await screen.findByRole("button", { name: "+" });
     await userEvent.click(rowButton);
-    const row = screen.getByTestId("diff-row-wrap-row-1");
     await userEvent.type(
-      within(row).getByLabelText("Comment text"),
+      screen.getByLabelText("Comment text"),
       "Line-level feedback"
     );
     await userEvent.keyboard("{Control>}{Enter}{/Control}");
