@@ -1,6 +1,7 @@
 export interface ReviewCommandOptions {
   readonly kind: "review";
   readonly base?: string;
+  readonly fixture?: string;
 }
 
 export type ReviewScopeKind = "working-tree" | "branch";

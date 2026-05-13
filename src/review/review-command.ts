@@ -19,6 +19,7 @@ export function parseReviewCommand(input: string): ReviewCommandOptions {
   }
 
   let base: string | undefined;
+  let fixture: string | undefined;
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === "--base") {
@@ -34,6 +35,21 @@ export function parseReviewCommand(input: string): ReviewCommandOptions {
       continue;
     }
 
+    if (arg === "--fixture") {
+      if (fixture !== undefined) {
+        throw new ReviewCommandParseError("Duplicate --fixture flag.");
+      }
+      const name = args[index + 1];
+      if (!name || name.startsWith("-")) {
+        throw new ReviewCommandParseError(
+          "Missing fixture name after --fixture."
+        );
+      }
+      fixture = name;
+      index += 1;
+      continue;
+    }
+
     if (arg.startsWith("-")) {
       throw new ReviewCommandParseError(`Unknown review flag: ${arg}.`);
     }
@@ -43,7 +59,17 @@ export function parseReviewCommand(input: string): ReviewCommandOptions {
     );
   }
 
-  return base ? { kind: "review", base } : { kind: "review" };
+  if (base && fixture) {
+    throw new ReviewCommandParseError(
+      "--fixture cannot be combined with --base."
+    );
+  }
+
+  return {
+    kind: "review",
+    ...(base ? { base } : {}),
+    ...(fixture ? { fixture } : {})
+  };
 }
 
 function tokenizeCommand(input: string): string[] {

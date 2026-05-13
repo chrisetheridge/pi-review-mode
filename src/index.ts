@@ -1,4 +1,5 @@
 import { openBrowserReviewSurface } from "./review/browser-review-surface.js";
+import { FixtureReviewSource } from "./review/fixture-review-source.js";
 import { GitReviewSource } from "./review/git-review-source.js";
 import { parseReviewCommand } from "./review/review-command.js";
 import type { ReviewScope } from "./review/types.js";
@@ -63,20 +64,19 @@ export default function reviewModeExtension(pi: PiExtensionHost) {
           return;
         }
 
-        const source = new GitReviewSource(ctx.cwd ?? process.cwd());
-        const scope = options.base
-          ? source.createBranchScope(options.base)
-          : await selectReviewScope(source, ctx);
+        const snapshot = options.fixture
+          ? new FixtureReviewSource(ctx.cwd ?? process.cwd()).createSnapshot(
+              assertFixtureModeEnabled(options.fixture)
+            )
+          : await createGitSnapshot(options.base, ctx);
 
-        if (!scope) {
+        if (!snapshot) {
           await ctx.ui?.notify?.(
             "Review cancelled. Editor contents were not changed.",
             "info"
           );
           return;
         }
-
-        const snapshot = source.createSnapshot(scope);
         await ctx.ui?.notify?.(
           "Opening browser review for a frozen Git snapshot.",
           "info"
@@ -108,6 +108,26 @@ export default function reviewModeExtension(pi: PiExtensionHost) {
       }
     }
   });
+}
+
+function assertFixtureModeEnabled(fixture: string): string {
+  if (process.env.PI_REVIEW_MODE_FIXTURES !== "1") {
+    throw new Error(
+      "Review fixtures are development-only. Set PI_REVIEW_MODE_FIXTURES=1 to use /review --fixture."
+    );
+  }
+  return fixture;
+}
+
+async function createGitSnapshot(
+  base: string | undefined,
+  ctx: PiCommandContext
+) {
+  const source = new GitReviewSource(ctx.cwd ?? process.cwd());
+  const scope = base
+    ? source.createBranchScope(base)
+    : await selectReviewScope(source, ctx);
+  return scope ? source.createSnapshot(scope) : undefined;
 }
 
 async function selectReviewScope(
