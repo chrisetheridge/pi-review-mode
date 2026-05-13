@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import type { ReviewApi } from "./api";
 import type { ReviewSnapshot, SavedComment } from "./types";
@@ -70,6 +70,10 @@ function makeApi(overrides: Partial<ReviewApi> = {}): ReviewApi {
 }
 
 describe("App", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it("blocks submit with no saved comments", async () => {
     const api = makeApi();
     render(<App api={api} token="test-token" />);
@@ -91,6 +95,22 @@ describe("App", () => {
     expect(
       screen.queryByRole("toolbar", { name: "Prototype variants" })
     ).toBeNull();
+  });
+
+  it("defaults to persisted light mode and switches back to dark mode", async () => {
+    window.localStorage.setItem("pi-review-mode-theme", "light");
+    const api = makeApi();
+    render(<App api={api} token="test-token" />);
+
+    const toggle = await screen.findByRole("button", { name: "Use dark mode" });
+    const shell = screen.getByTestId("review-app-shell");
+    expect(shell.classList.contains("dark")).toBe(false);
+
+    await userEvent.click(toggle);
+
+    expect(window.localStorage.getItem("pi-review-mode-theme")).toBe("dark");
+    expect(shell.classList.contains("dark")).toBe(true);
+    expect(screen.getByRole("button", { name: "Use light mode" })).toBeTruthy();
   });
 
   it("blocks submit while unsaved editors exist", async () => {

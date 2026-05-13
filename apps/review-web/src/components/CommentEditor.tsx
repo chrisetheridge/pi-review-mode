@@ -34,7 +34,7 @@ export function CommentEditor({
 
   return (
     <form
-      className="mt-2 max-w-[720px] overflow-hidden rounded-lg border border-[#424754] bg-[#081425]"
+      className="mt-2 max-w-[720px] overflow-hidden rounded-lg border border-review-light-border bg-review-light-bg dark:border-review-border dark:bg-review-bg"
       onSubmit={(event) => {
         event.preventDefault();
         void save();
@@ -42,7 +42,7 @@ export function CommentEditor({
     >
       <textarea
         ref={textareaRef}
-        className="block min-h-[86px] w-full resize-y rounded-t-lg border-0 border-[#424754] border-b bg-[#081425] p-2.5 text-[#d8e3fb] outline-none placeholder:text-[#8c909f] focus:border-[#adc6ff]"
+        className="block min-h-[86px] w-full resize-y rounded-t-lg border-0 border-review-light-border border-b bg-review-light-bg p-2.5 text-review-light-text outline-none placeholder:text-review-light-outline focus:border-review-light-primary dark:border-review-border dark:bg-review-bg dark:text-review-text dark:placeholder:text-review-outline dark:focus:border-review-primary"
         aria-label="Comment text"
         value={body}
         onChange={(event) => setBody(event.target.value)}
@@ -61,14 +61,14 @@ export function CommentEditor({
       <div className="flex justify-end gap-2 p-2">
         <button
           type="button"
-          className="min-h-8 rounded-md border border-[#424754] px-3 font-bold text-[#c2c6d6] hover:border-[#adc6ff]"
+          className="min-h-8 rounded-md border border-review-light-border px-3 font-bold text-review-light-muted hover:border-review-light-primary dark:border-review-border dark:text-review-muted dark:hover:border-review-primary"
           onClick={onCancel}
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="min-h-8 rounded-md border border-[#adc6ff] bg-[#adc6ff] px-3 font-bold text-[#002e6a] disabled:cursor-not-allowed disabled:opacity-55"
+          className="min-h-8 rounded-md border border-review-light-primary bg-review-light-primary px-3 font-bold text-review-light-surface disabled:cursor-not-allowed disabled:opacity-55 dark:border-review-primary dark:bg-review-primary dark:text-review-bg"
           disabled={!body.trim() || saving}
         >
           {saving ? "Saving..." : "Save"}

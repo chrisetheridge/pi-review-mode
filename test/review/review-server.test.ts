@@ -12,13 +12,14 @@ describe("ReviewServer", () => {
     servers.length = 0;
   });
 
-  async function start(): Promise<{
+  async function start(options: { webDevServerUrl?: string } = {}): Promise<{
     server: ReviewServer;
     url: string;
     token: string;
   }> {
     const server = new ReviewServer(snapshot(), {
-      assetsDir: join(process.cwd(), "test/fixtures/review-assets")
+      assetsDir: join(process.cwd(), "test/fixtures/review-assets"),
+      webDevServerUrl: options.webDevServerUrl
     });
     servers.push(server);
     const started = await server.start();
@@ -32,6 +33,42 @@ describe("ReviewServer", () => {
     const response = await fetch(url);
     expect(response.status).toBe(200);
     expect(await response.text()).toContain("review assets");
+  });
+
+  it("opens the Vite dev server URL with the backend API origin", async () => {
+    const { url, token } = await start({
+      webDevServerUrl: "http://127.0.0.1:5173/review"
+    });
+
+    const opened = new URL(url);
+    expect(opened.origin).toBe("http://127.0.0.1:5173");
+    expect(opened.pathname).toBe("/review");
+    expect(opened.searchParams.get("token")).toBe(token);
+    expect(opened.searchParams.get("apiBaseUrl")).toMatch(
+      /^http:\/\/127\.0\.0\.1:\d+$/
+    );
+  });
+
+  it("allows API CORS preflight from the configured Vite dev server", async () => {
+    const { url } = await start({
+      webDevServerUrl: "http://127.0.0.1:5173"
+    });
+    const opened = new URL(url);
+    const apiBaseUrl = opened.searchParams.get("apiBaseUrl");
+    expect(apiBaseUrl).toBeTruthy();
+
+    const response = await fetch(new URL("/api/snapshot", apiBaseUrl ?? ""), {
+      method: "OPTIONS",
+      headers: {
+        origin: "http://127.0.0.1:5173",
+        "access-control-request-method": "GET"
+      }
+    });
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-origin")).toBe(
+      "http://127.0.0.1:5173"
+    );
   });
 
   it("requires token for api endpoints", async () => {

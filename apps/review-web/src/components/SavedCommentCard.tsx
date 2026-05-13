@@ -31,21 +31,21 @@ export function SavedCommentCard({
   }
 
   return (
-    <article className="mt-2 max-w-[720px] overflow-hidden rounded-lg border border-[#424754] bg-[#1f2a3c]">
-      <p className="m-0 whitespace-pre-wrap p-2.5 text-[#d8e3fb]">
+    <article className="mt-2 max-w-[720px] overflow-hidden rounded-lg border border-review-light-border bg-review-light-low dark:border-review-border dark:bg-review-high">
+      <p className="m-0 whitespace-pre-wrap p-2.5 text-review-light-text dark:text-review-text">
         {comment.body}
       </p>
       <div className="flex justify-end gap-2 p-2">
         <button
           type="button"
-          className="min-h-8 rounded-md border border-[#424754] px-3 font-bold text-[#c2c6d6] hover:border-[#adc6ff]"
+          className="min-h-8 rounded-md border border-review-light-border px-3 font-bold text-review-light-muted hover:border-review-light-primary dark:border-review-border dark:text-review-muted dark:hover:border-review-primary"
           onClick={() => setEditing(true)}
         >
           Edit
         </button>
         <button
           type="button"
-          className="min-h-8 rounded-md border border-[#ffb4ab] px-3 font-bold text-[#ffb4ab]"
+          className="min-h-8 rounded-md border border-review-light-red px-3 font-bold text-review-light-red dark:border-review-red dark:text-review-red"
           onClick={() => void onDelete(comment.anchorId)}
         >
           Delete

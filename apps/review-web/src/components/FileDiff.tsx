@@ -29,15 +29,23 @@ function rowPrefix(type: string) {
 }
 
 function rowClasses(type: string) {
-  if (type === "add") return "bg-emerald-950/45 hover:bg-emerald-900/45";
-  if (type === "delete") return "bg-red-950/45 hover:bg-red-900/45";
-  return "bg-transparent hover:bg-[#2a3548]";
+  if (type === "add") {
+    return "bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/45 dark:hover:bg-emerald-900/45";
+  }
+  if (type === "delete") {
+    return "bg-red-50 hover:bg-red-100 dark:bg-red-950/45 dark:hover:bg-red-900/45";
+  }
+  return "bg-transparent hover:bg-review-light-high dark:hover:bg-review-high";
 }
 
 function gutterClasses(type: string) {
-  if (type === "add") return "border-emerald-300/20 text-emerald-100";
-  if (type === "delete") return "border-red-300/20 text-red-100";
-  return "border-transparent text-[#8c909f]";
+  if (type === "add") {
+    return "border-emerald-200 text-emerald-700 dark:border-emerald-300/20 dark:text-emerald-100";
+  }
+  if (type === "delete") {
+    return "border-red-200 text-red-700 dark:border-red-300/20 dark:text-red-100";
+  }
+  return "border-transparent text-review-light-outline dark:text-review-outline";
 }
 
 const statusClasses: Record<string, string> = {
@@ -45,7 +53,8 @@ const statusClasses: Record<string, string> = {
   deleted: "bg-[#ffe3e3] text-[#a61b1b]",
   renamed: "bg-[#fff0c2] text-[#8a5d00]",
   copied: "bg-[#e8f2ff] text-[#334e68]",
-  binary: "bg-[#2a3548] text-[#d8e3fb]",
+  binary:
+    "bg-review-light-high text-review-light-text dark:bg-review-high dark:text-review-text",
   modified: "bg-[#eef2f6] text-[#334e68]"
 };
 
@@ -79,7 +88,7 @@ export function FileDiff({
     const saved = commentsByAnchor[anchor.id] ?? [];
     const editor = editorsByAnchor[anchor.id];
     return (
-      <div className="ml-[140px] py-2 pr-4 max-[800px]:ml-0 max-[800px]:pl-3">
+      <div className="ml-[140px] max-[800px]:ml-0 max-[800px]:pl-3">
         {saved.map((comment) => (
           <SavedCommentCard
             key={comment.id}
@@ -101,13 +110,13 @@ export function FileDiff({
 
   return (
     <section
-      className="mb-4 overflow-hidden rounded-lg border border-[#424754] bg-[#111c2d]"
+      className="mb-4 overflow-hidden rounded-lg border border-review-light-border bg-review-light-bg dark:border-review-border dark:bg-review-low"
       aria-label={`Diff for ${file.path}`}
     >
-      <header className="grid grid-cols-[36px_minmax(0,1fr)_auto_auto] items-center gap-3 border-[#424754] border-b px-3.5 py-3">
+      <header className="grid grid-cols-[36px_minmax(0,1fr)_auto_auto] items-center gap-3 border-review-light-border border-b px-3.5 py-3 dark:border-review-border">
         <button
           type="button"
-          className="text-[#c2c6d6] hover:text-[#adc6ff]"
+          className="text-review-light-muted hover:text-review-light-primary dark:text-review-muted dark:hover:text-review-primary"
           aria-label={`${collapsed ? "Expand" : "Collapse"} ${file.path}`}
           onClick={() => onToggleCollapse(file.path)}
         >
@@ -116,7 +125,7 @@ export function FileDiff({
         <div>
           <h2 className="m-0 break-words text-base font-bold">{file.path}</h2>
           {file.oldPath && file.oldPath !== file.path ? (
-            <p className="mt-1 text-[#c2c6d6] text-sm">
+            <p className="mt-1 text-review-light-muted text-sm dark:text-review-muted">
               Renamed from {file.oldPath}
             </p>
           ) : null}
@@ -128,16 +137,16 @@ export function FileDiff({
         >
           {file.status}
         </span>
-        <span className="font-mono text-[#8c909f] text-sm">
+        <span className="font-mono text-review-light-outline text-sm dark:text-review-outline">
           +{file.additions} -{file.deletions}
         </span>
       </header>
       {collapsed ? null : (
         <div>
-          <div className="border-[#424754] border-b px-3.5 py-3">
+          <div className="border-review-light-border border-b px-3.5 py-3 dark:border-review-border">
             <button
               type="button"
-              className="min-h-8 rounded-md border border-[#424754] bg-[#1f2a3c] px-3 font-bold text-[#d8e3fb] hover:border-[#adc6ff]"
+              className="min-h-8 rounded-md border border-review-light-border bg-review-light-low px-3 font-bold text-review-light-text hover:border-review-light-primary dark:border-review-border dark:bg-review-high dark:text-review-text dark:hover:border-review-primary"
               onClick={() => onStartComment(file.fileAnchor)}
             >
               Add file comment
@@ -145,7 +154,7 @@ export function FileDiff({
             {renderCommentSurface(file.fileAnchor)}
           </div>
           {file.binary ? (
-            <div className="px-3.5 py-5 text-[#c2c6d6]">
+            <div className="px-3.5 py-5 text-review-light-muted dark:text-review-muted">
               Binary file. Line comments are unavailable.
             </div>
           ) : (
@@ -154,7 +163,7 @@ export function FileDiff({
                 className="min-w-0"
                 key={`${file.path}-${hunk.rows[0]?.anchor.id ?? hunk.header}`}
               >
-                <div className="bg-[#1f2a3c] px-3.5 py-2 font-mono text-[#adc6ff] text-sm">
+                <div className="bg-review-light-high px-3.5 py-2 font-mono text-review-light-primary text-sm dark:bg-review-high dark:text-review-primary">
                   {hunk.header}
                 </div>
                 {hunk.rows.map((row) => (
@@ -164,7 +173,7 @@ export function FileDiff({
                   >
                     <button
                       type="button"
-                      className={`grid min-h-7 w-full grid-cols-[58px_58px_24px_minmax(0,1fr)] border-[#253246] border-t text-left font-mono text-sm leading-6 ${rowClasses(
+                      className={`grid min-h-7 w-full grid-cols-[58px_58px_24px_minmax(0,1fr)] border-review-light-border border-t text-left font-mono text-sm leading-6 dark:border-[#253246] ${rowClasses(
                         row.type
                       )}`}
                       data-row-type={row.type}
@@ -185,10 +194,10 @@ export function FileDiff({
                       >
                         {lineNumber(row.newLineNumber)}
                       </span>
-                      <span className="px-2 py-1 text-center text-[#8c909f] select-none">
+                      <span className="px-2 py-1 text-center text-review-light-outline select-none dark:text-review-outline">
                         {rowPrefix(row.type)}
                       </span>
-                      <code className="min-w-0 overflow-x-auto px-2 py-1 whitespace-pre text-[#d8e3fb]">
+                      <code className="min-w-0 overflow-x-auto px-2 py-1 whitespace-pre text-review-light-text dark:text-review-text">
                         {row.text}
                       </code>
                     </button>

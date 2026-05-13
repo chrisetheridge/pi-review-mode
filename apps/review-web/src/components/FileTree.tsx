@@ -23,7 +23,8 @@ const statusClasses: Record<string, string> = {
   deleted: "bg-[#ffe3e3] text-[#a61b1b]",
   renamed: "bg-[#fff0c2] text-[#8a5d00]",
   copied: "bg-[#e8f2ff] text-[#334e68]",
-  binary: "bg-[#2a3548] text-[#d8e3fb]",
+  binary:
+    "bg-review-light-high text-review-light-text dark:bg-review-high dark:text-review-text",
   modified: "bg-[#eef2f6] text-[#334e68]"
 };
 
@@ -42,7 +43,7 @@ export function FileTree({
 
   return (
     <nav className="min-h-0 overflow-auto px-2 py-4" aria-label="Changed files">
-      <h2 className="m-0 px-1 pb-3 font-mono text-[#8c909f] text-[0.68rem] uppercase tracking-[0.05em]">
+      <h2 className="m-0 px-1 pb-3 font-mono text-review-light-outline text-[0.68rem] uppercase tracking-[0.05em] dark:text-review-outline">
         Changed files
       </h2>
       <div className="grid gap-1">
@@ -56,7 +57,7 @@ export function FileTree({
             >
               <button
                 type="button"
-                className="text-[#c2c6d6] hover:text-[#adc6ff]"
+                className="text-review-light-muted hover:text-review-light-primary dark:text-review-muted dark:hover:text-review-primary"
                 aria-label={`${collapsedPaths.has(file.path) ? "Expand" : "Collapse"} ${file.path}`}
                 onClick={() => onToggleCollapse(file.path)}
               >
@@ -66,8 +67,8 @@ export function FileTree({
                 type="button"
                 className={`grid min-h-8 w-full grid-cols-[22px_minmax(0,1fr)_auto_auto] items-center gap-2 border-l-2 px-2 py-1.5 text-left ${
                   selected
-                    ? "border-[#adc6ff] text-[#adc6ff]"
-                    : "border-transparent text-[#c2c6d6] hover:bg-[#1f2a3c]"
+                    ? "border-review-light-primary text-review-light-primary dark:border-review-primary dark:text-review-primary"
+                    : "border-transparent text-review-light-muted hover:bg-review-light-high dark:text-review-muted dark:hover:bg-review-high"
                 }`}
                 aria-current={selected ? "true" : undefined}
                 aria-label={`${selected ? "Selected " : ""}${file.path}`}
@@ -83,12 +84,12 @@ export function FileTree({
                 <span className="truncate" title={file.path}>
                   {file.path}
                 </span>
-                <span className="font-mono text-[#8c909f] text-xs">
+                <span className="font-mono text-review-light-outline text-xs dark:text-review-outline">
                   +{file.additions} -{file.deletions}
                 </span>
                 {count > 0 ? (
                   <span
-                    className="min-w-[22px] rounded-full bg-[#334e68] text-center font-bold text-white text-xs leading-[22px]"
+                    className="min-w-[22px] rounded-full bg-review-light-primary text-center font-bold text-review-light-surface text-xs leading-[22px] dark:bg-[#334e68] dark:text-white"
                     title={`${count} comments`}
                   >
                     <span aria-hidden="true">{count}</span>
