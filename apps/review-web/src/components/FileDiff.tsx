@@ -1,3 +1,6 @@
+import { DiffModeEnum, DiffView, SplitSide } from "@git-diff-view/react";
+import "@git-diff-view/react/styles/diff-view-pure.css";
+import { useMemo } from "react";
 import type { DiffAnchor, ReviewFileSnapshot, SavedComment } from "../types";
 import { CommentEditor } from "./CommentEditor";
 import { SavedCommentCard } from "./SavedCommentCard";
@@ -16,37 +19,17 @@ interface FileDiffProps {
   onCancelEditor: (anchorId: string) => void;
   onSaveComment: (anchor: DiffAnchor, body: string) => Promise<void> | void;
   onDeleteComment: (anchorId: string) => Promise<void> | void;
+  theme?: "light" | "dark";
 }
 
-function lineNumber(value?: number) {
-  return value == null ? "" : String(value);
-}
+type ExtendItem =
+  | { type: "comment"; comment: SavedComment; anchor: DiffAnchor }
+  | { type: "editor"; anchor: DiffAnchor };
 
-function rowPrefix(type: string) {
-  if (type === "add") return "+";
-  if (type === "delete") return "-";
-  return " ";
-}
-
-function rowClasses(type: string) {
-  if (type === "add") {
-    return "bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/45 dark:hover:bg-emerald-900/45";
-  }
-  if (type === "delete") {
-    return "bg-red-50 hover:bg-red-100 dark:bg-red-950/45 dark:hover:bg-red-900/45";
-  }
-  return "bg-transparent hover:bg-review-light-high dark:hover:bg-review-high";
-}
-
-function gutterClasses(type: string) {
-  if (type === "add") {
-    return "border-emerald-200 text-emerald-700 dark:border-emerald-300/20 dark:text-emerald-100";
-  }
-  if (type === "delete") {
-    return "border-red-200 text-red-700 dark:border-red-300/20 dark:text-red-100";
-  }
-  return "border-transparent text-review-light-outline dark:text-review-outline";
-}
+type ExtendData = {
+  oldFile?: Record<string, { data: ExtendItem[] }>;
+  newFile?: Record<string, { data: ExtendItem[] }>;
+};
 
 const statusClasses: Record<string, string> = {
   added: "bg-[#d9f7e8] text-[#0b6b3a]",
@@ -58,6 +41,59 @@ const statusClasses: Record<string, string> = {
   modified: "bg-[#eef2f6] text-[#334e68]"
 };
 
+function sideKey(side: "old" | "new") {
+  return side === "old" ? "oldFile" : "newFile";
+}
+
+function addExtendItem(
+  extendData: ExtendData,
+  anchor: DiffAnchor,
+  item: ExtendItem
+) {
+  if (anchor.side !== "old" && anchor.side !== "new") return;
+  const lineNumber =
+    anchor.side === "old" ? anchor.oldLineNumber : anchor.newLineNumber;
+  if (lineNumber == null) return;
+  const key = sideKey(anchor.side);
+  extendData[key] ??= {};
+  const lineKey = String(lineNumber);
+  const existing = extendData[key]?.[lineKey]?.data ?? [];
+  extendData[key] = {
+    ...extendData[key],
+    [lineKey]: { data: [...existing, item] }
+  };
+}
+
+function buildAnchorIndex(file: ReviewFileSnapshot) {
+  const old = new Map<number, DiffAnchor>();
+  const next = new Map<number, DiffAnchor>();
+  for (const hunk of file.hunks) {
+    for (const row of hunk.rows) {
+      if (row.oldLineNumber != null) old.set(row.oldLineNumber, row.anchor);
+      if (row.newLineNumber != null) next.set(row.newLineNumber, row.anchor);
+    }
+  }
+  return { old, new: next };
+}
+
+function fallbackPatch(file: ReviewFileSnapshot) {
+  const oldPath = file.oldPath ?? file.path;
+  const lines = [
+    `diff --git a/${oldPath} b/${file.path}`,
+    `--- a/${oldPath}`,
+    `+++ b/${file.path}`
+  ];
+  for (const hunk of file.hunks) {
+    lines.push(hunk.header);
+    for (const row of hunk.rows) {
+      const prefix =
+        row.type === "add" ? "+" : row.type === "delete" ? "-" : " ";
+      lines.push(`${prefix}${row.text}`);
+    }
+  }
+  return `${lines.join("\n")}\n`;
+}
+
 export function FileDiff({
   file,
   collapsed,
@@ -67,7 +103,8 @@ export function FileDiff({
   onStartComment,
   onCancelEditor,
   onSaveComment,
-  onDeleteComment
+  onDeleteComment,
+  theme = "dark"
 }: FileDiffProps) {
   const commentsByAnchor = comments.reduce<Record<string, SavedComment[]>>(
     (acc, comment) => {
@@ -83,6 +120,29 @@ export function FileDiff({
     },
     {}
   );
+
+  const anchorIndex = useMemo(() => buildAnchorIndex(file), [file]);
+  const extendData = useMemo<ExtendData>(() => {
+    const data: ExtendData = { oldFile: {}, newFile: {} };
+    for (const comment of comments) {
+      const anchor = findAnchorById(file, comment.anchorId);
+      if (anchor)
+        addExtendItem(data, anchor, { type: "comment", comment, anchor });
+    }
+    for (const editor of activeEditors) {
+      addExtendItem(data, editor.anchor, {
+        type: "editor",
+        anchor: editor.anchor
+      });
+    }
+    return data;
+  }, [file, comments, activeEditors]);
+
+  function findLineAnchor(lineNumber: number, side: SplitSide) {
+    return side === SplitSide.old
+      ? anchorIndex.old.get(lineNumber)
+      : anchorIndex.new.get(lineNumber);
+  }
 
   function renderCommentSurface(anchor: DiffAnchor) {
     const saved = commentsByAnchor[anchor.id] ?? [];
@@ -158,57 +218,65 @@ export function FileDiff({
               Binary file. Line comments are unavailable.
             </div>
           ) : (
-            file.hunks.map((hunk) => (
-              <div
-                className="min-w-0"
-                key={`${file.path}-${hunk.rows[0]?.anchor.id ?? hunk.header}`}
-              >
-                <div className="bg-review-light-high px-3.5 py-2 font-mono text-review-light-primary text-sm dark:bg-review-high dark:text-review-primary">
-                  {hunk.header}
-                </div>
-                {hunk.rows.map((row) => (
-                  <div
-                    key={row.anchor.id}
-                    data-testid={`diff-row-wrap-${row.anchor.id}`}
-                  >
-                    <button
-                      type="button"
-                      className={`grid min-h-7 w-full grid-cols-[58px_58px_24px_minmax(0,1fr)] border-review-light-border border-t text-left font-mono text-sm leading-6 dark:border-[#253246] ${rowClasses(
-                        row.type
-                      )}`}
-                      data-row-type={row.type}
-                      onClick={() => onStartComment(row.anchor)}
-                      aria-label={`Comment on ${file.path} row ${row.anchor.rowIndex ?? ""}`}
-                    >
-                      <span
-                        className={`border-r px-2 py-1 text-right select-none ${gutterClasses(
-                          row.type
-                        )}`}
-                      >
-                        {lineNumber(row.oldLineNumber)}
-                      </span>
-                      <span
-                        className={`border-r px-2 py-1 text-right select-none ${gutterClasses(
-                          row.type
-                        )}`}
-                      >
-                        {lineNumber(row.newLineNumber)}
-                      </span>
-                      <span className="px-2 py-1 text-center text-review-light-outline select-none dark:text-review-outline">
-                        {rowPrefix(row.type)}
-                      </span>
-                      <code className="min-w-0 overflow-x-auto px-2 py-1 whitespace-pre text-review-light-text dark:text-review-text">
-                        {row.text}
-                      </code>
-                    </button>
-                    {renderCommentSurface(row.anchor)}
-                  </div>
-                ))}
-              </div>
-            ))
+            <div
+              className="review-diff-view"
+              data-testid={`diff-view-${file.path}`}
+            >
+              <DiffView<ExtendItem[]>
+                data={{
+                  oldFile: { fileName: file.oldPath ?? file.path, content: "" },
+                  newFile: { fileName: file.path, content: "" },
+                  hunks: [file.patch ?? fallbackPatch(file)]
+                }}
+                diffViewMode={DiffModeEnum.Unified}
+                diffViewTheme={theme}
+                diffViewHighlight
+                diffViewWrap={false}
+                diffViewAddWidget
+                extendData={extendData}
+                onAddWidgetClick={(lineNumber, side) => {
+                  const anchor = findLineAnchor(lineNumber, side);
+                  if (anchor) onStartComment(anchor);
+                }}
+                renderExtendLine={({ data }) => {
+                  if (!data?.length) return null;
+                  return (
+                    <div className="border-review-light-border border-y bg-review-light-bg px-4 py-2 dark:border-review-border dark:bg-review-low">
+                      {data.map((item) =>
+                        item.type === "comment" ? (
+                          <SavedCommentCard
+                            key={item.comment.id}
+                            comment={item.comment}
+                            anchor={item.anchor}
+                            onDelete={onDeleteComment}
+                            onSave={onSaveComment}
+                          />
+                        ) : (
+                          <CommentEditor
+                            key={`editor-${item.anchor.id}`}
+                            onCancel={() => onCancelEditor(item.anchor.id)}
+                            onSave={(body) => onSaveComment(item.anchor, body)}
+                          />
+                        )
+                      )}
+                    </div>
+                  );
+                }}
+              />
+            </div>
           )}
         </div>
       )}
     </section>
   );
+}
+
+function findAnchorById(file: ReviewFileSnapshot, anchorId: string) {
+  if (file.fileAnchor.id === anchorId) return file.fileAnchor;
+  for (const hunk of file.hunks) {
+    for (const row of hunk.rows) {
+      if (row.anchor.id === anchorId) return row.anchor;
+    }
+  }
+  return undefined;
 }

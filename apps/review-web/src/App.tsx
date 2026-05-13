@@ -213,6 +213,7 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
               onCancelEditor={cancelEditor}
               onSaveComment={saveComment}
               onDeleteComment={deleteComment}
+              theme={theme}
             />
           ))}
         </section>

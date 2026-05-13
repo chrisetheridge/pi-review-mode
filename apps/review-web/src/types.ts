@@ -40,6 +40,7 @@ export interface ReviewFileSnapshot {
   additions: number;
   deletions: number;
   binary: boolean;
+  patch?: string;
   hunks: DiffHunk[];
   fileAnchor: DiffAnchor;
 }

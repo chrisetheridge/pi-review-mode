@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ReviewFileSnapshot } from "../types";
@@ -68,7 +68,7 @@ const file: ReviewFileSnapshot = {
 };
 
 describe("FileDiff", () => {
-  it("renders context, delete, and add rows", () => {
+  it("renders context, delete, and add rows", async () => {
     render(
       <FileDiff
         file={file}
@@ -83,21 +83,11 @@ describe("FileDiff", () => {
       />
     );
 
-    expect(
-      screen
-        .getByRole("button", { name: /row 0/i })
-        .getAttribute("data-row-type")
-    ).toBe("context");
-    expect(
-      screen
-        .getByRole("button", { name: /row 1/i })
-        .getAttribute("data-row-type")
-    ).toBe("delete");
-    expect(
-      screen
-        .getByRole("button", { name: /row 2/i })
-        .getAttribute("data-row-type")
-    ).toBe("add");
+    await screen.findByTestId("diff-view-src/app.ts");
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("const keep = true");
+    expect(text).toContain("const oldValue = 1");
+    expect(text).toContain("const newValue = 2");
   });
 
   it("saves file-level comments", async () => {
@@ -162,7 +152,7 @@ describe("FileDiff", () => {
       />
     );
 
-    await userEvent.click(screen.getByRole("button", { name: /row 2/i }));
+    await userEvent.click(screen.getAllByRole("button", { name: "+" })[2]);
     expect(onStartComment).toHaveBeenCalledWith(lineAnchor);
 
     rerender(
@@ -179,11 +169,7 @@ describe("FileDiff", () => {
       />
     );
 
-    const row = screen.getByTestId("diff-row-wrap-row-3");
-    await userEvent.type(
-      within(row).getByLabelText("Comment text"),
-      "Line note"
-    );
+    await userEvent.type(screen.getByLabelText("Comment text"), "Line note");
     await userEvent.keyboard("{Meta>}{Enter}{/Meta}");
 
     await waitFor(() =>

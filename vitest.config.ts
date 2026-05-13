@@ -12,6 +12,7 @@ export default defineConfig({
       "apps/review-web/**/*.test.tsx"
     ],
     restoreMocks: true,
+    setupFiles: ["test/setup.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html"]

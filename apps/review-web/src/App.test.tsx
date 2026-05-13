@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
@@ -91,7 +91,7 @@ describe("App", () => {
       screen.getByRole("navigation", { name: "Changed files" })
     ).toBeTruthy();
     expect(screen.getByRole("region", { name: "Unified diff" })).toBeTruthy();
-    expect(screen.getByText("const value = 1;")).toBeTruthy();
+    expect(document.body.textContent).toContain("const value = 1");
     expect(
       screen.queryByRole("toolbar", { name: "Prototype variants" })
     ).toBeNull();
@@ -127,7 +127,7 @@ describe("App", () => {
     render(<App api={api} token="test-token" />);
 
     await screen.findByText("Saved");
-    await userEvent.click(screen.getByRole("button", { name: /row 0/i }));
+    await userEvent.click(screen.getByRole("button", { name: "+" }));
 
     const submit = screen.getByRole("button", { name: "Submit" });
     expect(submit.hasAttribute("disabled")).toBe(true);
@@ -159,11 +159,10 @@ describe("App", () => {
     const api = makeApi();
     render(<App api={api} token="test-token" />);
 
-    const rowButton = await screen.findByRole("button", { name: /row 0/i });
+    const rowButton = await screen.findByRole("button", { name: "+" });
     await userEvent.click(rowButton);
-    const row = screen.getByTestId("diff-row-wrap-row-1");
     await userEvent.type(
-      within(row).getByLabelText("Comment text"),
+      screen.getByLabelText("Comment text"),
       "Line-level feedback"
     );
     await userEvent.keyboard("{Control>}{Enter}{/Control}");
