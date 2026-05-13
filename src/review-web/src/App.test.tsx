@@ -78,6 +78,21 @@ describe("App", () => {
     expect(submit.hasAttribute("disabled")).toBe(true);
   });
 
+  it("renders the production dark review shell with the unified diff", async () => {
+    const api = makeApi();
+    render(<App api={api} token="test-token" />);
+
+    expect(await screen.findByText("Pi Review Mode")).toBeTruthy();
+    expect(
+      screen.getByRole("navigation", { name: "Changed files" })
+    ).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Unified diff" })).toBeTruthy();
+    expect(screen.getByText("const value = 1;")).toBeTruthy();
+    expect(
+      screen.queryByRole("toolbar", { name: "Prototype variants" })
+    ).toBeNull();
+  });
+
   it("blocks submit while unsaved editors exist", async () => {
     const api = makeApi({
       getDrafts: vi.fn().mockResolvedValue([
@@ -126,9 +141,7 @@ describe("App", () => {
 
     const rowButton = await screen.findByRole("button", { name: /row 0/i });
     await userEvent.click(rowButton);
-    const row = screen
-      .getByText("const value = 1;")
-      .closest(".diff-row-wrap") as HTMLElement;
+    const row = screen.getByTestId("diff-row-wrap-row-1");
     await userEvent.type(
       within(row).getByLabelText("Comment text"),
       "Line-level feedback"

@@ -46,18 +46,17 @@ describe("FileTree", () => {
       />
     );
 
-    const selectedItem = screen
-      .getAllByRole("button", { name: /src\/app\.ts/i })
-      .find((button) => button.className.includes("file-tree__item"));
-    expect(selectedItem?.className).toContain("file-tree__item--selected");
+    const selectedItem = screen.getByRole("button", {
+      name: /selected.*src\/app\.ts/i
+    });
+    expect(selectedItem.getAttribute("aria-current")).toBe("true");
     expect(screen.getByText("+4 -1")).toBeTruthy();
     expect(screen.getByText("2 comments")).toBeTruthy();
 
-    const logoItem = screen
-      .getAllByRole("button", { name: /assets\/logo\.png/i })
-      .find((button) => button.className.includes("file-tree__item"));
-    expect(logoItem).toBeTruthy();
-    await userEvent.click(logoItem as HTMLElement);
+    const logoItem = screen.getByRole("button", {
+      name: /^assets\/logo\.png$/i
+    });
+    await userEvent.click(logoItem);
     expect(onSelect).toHaveBeenCalledWith("assets/logo.png");
   });
 

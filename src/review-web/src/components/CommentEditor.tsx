@@ -34,7 +34,7 @@ export function CommentEditor({
 
   return (
     <form
-      className="comment-editor"
+      className="mt-2 max-w-[720px] overflow-hidden rounded-lg border border-[#424754] bg-[#081425]"
       onSubmit={(event) => {
         event.preventDefault();
         void save();
@@ -42,6 +42,7 @@ export function CommentEditor({
     >
       <textarea
         ref={textareaRef}
+        className="block min-h-[86px] w-full resize-y rounded-t-lg border-0 border-[#424754] border-b bg-[#081425] p-2.5 text-[#d8e3fb] outline-none placeholder:text-[#8c909f] focus:border-[#adc6ff]"
         aria-label="Comment text"
         value={body}
         onChange={(event) => setBody(event.target.value)}
@@ -57,17 +58,17 @@ export function CommentEditor({
         }}
         placeholder="Add review feedback"
       />
-      <div className="comment-editor__actions">
+      <div className="flex justify-end gap-2 p-2">
         <button
           type="button"
-          className="button button--ghost"
+          className="min-h-8 rounded-md border border-[#424754] px-3 font-bold text-[#c2c6d6] hover:border-[#adc6ff]"
           onClick={onCancel}
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="button button--primary"
+          className="min-h-8 rounded-md border border-[#adc6ff] bg-[#adc6ff] px-3 font-bold text-[#002e6a] disabled:cursor-not-allowed disabled:opacity-55"
           disabled={!body.trim() || saving}
         >
           {saving ? "Saving..." : "Save"}

@@ -18,6 +18,15 @@ const statusLabels: Record<string, string> = {
   binary: "B"
 };
 
+const statusClasses: Record<string, string> = {
+  added: "bg-[#d9f7e8] text-[#0b6b3a]",
+  deleted: "bg-[#ffe3e3] text-[#a61b1b]",
+  renamed: "bg-[#fff0c2] text-[#8a5d00]",
+  copied: "bg-[#e8f2ff] text-[#334e68]",
+  binary: "bg-[#2a3548] text-[#d8e3fb]",
+  modified: "bg-[#eef2f6] text-[#334e68]"
+};
+
 export function FileTree({
   files,
   comments,
@@ -32,17 +41,22 @@ export function FileTree({
   }, {});
 
   return (
-    <aside className="file-tree" aria-label="Changed files">
-      <div className="file-tree__header">Files</div>
-      <nav>
+    <nav className="min-h-0 overflow-auto px-2 py-4" aria-label="Changed files">
+      <h2 className="m-0 px-1 pb-3 font-mono text-[#8c909f] text-[0.68rem] uppercase tracking-[0.05em]">
+        Changed files
+      </h2>
+      <div className="grid gap-1">
         {files.map((file) => {
           const count = counts[file.path] ?? 0;
           const selected = selectedPath === file.path;
           return (
-            <div className="file-tree__row" key={file.path}>
+            <div
+              className="grid grid-cols-[28px_minmax(0,1fr)]"
+              key={file.path}
+            >
               <button
                 type="button"
-                className="file-tree__toggle"
+                className="text-[#c2c6d6] hover:text-[#adc6ff]"
                 aria-label={`${collapsedPaths.has(file.path) ? "Expand" : "Collapse"} ${file.path}`}
                 onClick={() => onToggleCollapse(file.path)}
               >
@@ -50,27 +64,31 @@ export function FileTree({
               </button>
               <button
                 type="button"
-                className={
+                className={`grid min-h-8 w-full grid-cols-[22px_minmax(0,1fr)_auto_auto] items-center gap-2 border-l-2 px-2 py-1.5 text-left ${
                   selected
-                    ? "file-tree__item file-tree__item--selected"
-                    : "file-tree__item"
-                }
+                    ? "border-[#adc6ff] text-[#adc6ff]"
+                    : "border-transparent text-[#c2c6d6] hover:bg-[#1f2a3c]"
+                }`}
+                aria-current={selected ? "true" : undefined}
+                aria-label={`${selected ? "Selected " : ""}${file.path}`}
                 onClick={() => onSelect(file.path)}
               >
                 <span
-                  className={`file-tree__status file-tree__status--${file.status}`}
+                  className={`inline-flex h-[22px] min-w-[22px] items-center justify-center rounded font-extrabold text-xs ${
+                    statusClasses[file.status] ?? statusClasses.modified
+                  }`}
                 >
                   {statusLabels[file.status] ?? "M"}
                 </span>
-                <span className="file-tree__path" title={file.path}>
+                <span className="truncate" title={file.path}>
                   {file.path}
                 </span>
-                <span className="file-tree__stats">
+                <span className="font-mono text-[#8c909f] text-xs">
                   +{file.additions} -{file.deletions}
                 </span>
                 {count > 0 ? (
                   <span
-                    className="file-tree__comments"
+                    className="min-w-[22px] rounded-full bg-[#334e68] text-center font-bold text-white text-xs leading-[22px]"
                     title={`${count} comments`}
                   >
                     <span aria-hidden="true">{count}</span>
@@ -81,7 +99,7 @@ export function FileTree({
             </div>
           );
         })}
-      </nav>
-    </aside>
+      </div>
+    </nav>
   );
 }

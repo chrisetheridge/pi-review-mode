@@ -84,14 +84,20 @@ describe("FileDiff", () => {
     );
 
     expect(
-      screen.getByText("const keep = true;").closest(".diff-row")?.className
-    ).toContain("diff-row--context");
+      screen
+        .getByRole("button", { name: /row 0/i })
+        .getAttribute("data-row-type")
+    ).toBe("context");
     expect(
-      screen.getByText("const oldValue = 1;").closest(".diff-row")?.className
-    ).toContain("diff-row--delete");
+      screen
+        .getByRole("button", { name: /row 1/i })
+        .getAttribute("data-row-type")
+    ).toBe("delete");
     expect(
-      screen.getByText("const newValue = 2;").closest(".diff-row")?.className
-    ).toContain("diff-row--add");
+      screen
+        .getByRole("button", { name: /row 2/i })
+        .getAttribute("data-row-type")
+    ).toBe("add");
   });
 
   it("saves file-level comments", async () => {
@@ -173,9 +179,7 @@ describe("FileDiff", () => {
       />
     );
 
-    const row = screen
-      .getByText("const newValue = 2;")
-      .closest(".diff-row-wrap") as HTMLElement;
+    const row = screen.getByTestId("diff-row-wrap-row-3");
     await userEvent.type(
       within(row).getByLabelText("Comment text"),
       "Line note"
