@@ -18,8 +18,10 @@ interface FileTreeProps {
   comments: SavedComment[];
   selectedPath: string | null;
   collapsedPaths: Set<string>;
+  sidebarCollapsed?: boolean;
   onSelect: (path: string) => void;
   onToggleCollapse: (path: string) => void;
+  onToggleSidebar?: () => void;
 }
 
 interface DirectoryNode {
@@ -114,8 +116,10 @@ export function FileTree({
   comments,
   selectedPath,
   collapsedPaths,
+  sidebarCollapsed = false,
   onSelect,
-  onToggleCollapse
+  onToggleCollapse,
+  onToggleSidebar
 }: FileTreeProps) {
   const [query, setQuery] = useState("");
   const [collapsedDirectories, setCollapsedDirectories] = useState<Set<string>>(
@@ -224,15 +228,6 @@ export function FileTree({
           <span className="truncate" title={file.path}>
             {node.name}
           </span>
-          <Badge
-            variant="outline"
-            className={cn(
-              "h-5 min-w-5 px-1 font-bold text-[0.65rem]",
-              statusClasses[file.status] ?? statusClasses.modified
-            )}
-          >
-            {statusLabels[file.status] ?? "M"}
-          </Badge>
           <span className="whitespace-nowrap font-mono text-[0.68rem] text-muted-foreground">
             <span className="sr-only">
               +{file.additions} -{file.deletions}
@@ -255,6 +250,24 @@ export function FileTree({
           ) : null}
         </Button>
       </div>
+    );
+  }
+
+  if (sidebarCollapsed) {
+    return (
+      <nav className="min-h-0 overflow-auto p-2" aria-label="Changed files">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-lg"
+          aria-label="Expand changed files sidebar"
+          aria-expanded="false"
+          onClick={onToggleSidebar}
+          title="Expand changed files sidebar"
+        >
+          <ListFilter aria-hidden="true" className="size-4" strokeWidth={2} />
+        </Button>
+      </nav>
     );
   }
 
@@ -282,7 +295,10 @@ export function FileTree({
           type="button"
           variant="outline"
           size="icon-lg"
-          aria-label="Filter settings"
+          aria-label="Collapse changed files sidebar"
+          aria-expanded="true"
+          onClick={onToggleSidebar}
+          title="Collapse changed files sidebar"
         >
           <ListFilter aria-hidden="true" className="size-4" strokeWidth={2} />
         </Button>

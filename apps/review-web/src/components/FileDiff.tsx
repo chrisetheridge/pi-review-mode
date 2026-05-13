@@ -174,7 +174,7 @@ export function FileDiff({
 
   return (
     <section
-      className="mb-4 overflow-hidden border border-border bg-card text-card-foreground shadow-xs"
+      className="mb-4 overflow-hidden border border-border bg-card text-card-foreground shadow-xs rounded-md"
       aria-label={`Diff for ${file.path}`}
     >
       <header className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 border-border border-b bg-muted/50 px-3.5 py-2">
@@ -193,9 +193,7 @@ export function FileDiff({
         </Button>
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
-            <h2 className="m-0 truncate font-mono text-[0.92rem] font-semibold">
-              {file.path}
-            </h2>
+            <h2 className="m-0 truncate font-mono text-sm">{file.path}</h2>
           </div>
           {file.oldPath && file.oldPath !== file.path ? (
             <p className="mt-1 text-muted-foreground text-xs">
@@ -205,7 +203,7 @@ export function FileDiff({
         </div>
         <div className="flex items-center gap-2">
           <Badge
-            variant="outline"
+            variant="ghost"
             className="font-mono text-xs text-muted-foreground"
           >
             <span className="sr-only">
@@ -220,7 +218,7 @@ export function FileDiff({
           </Badge>
           <label
             className={cn(
-              "inline-flex min-h-8 items-center gap-1 border px-2.5 text-sm transition-colors hover:bg-muted",
+              "inline-flex min-h-8 items-center gap-1 border px-2.5 text-sm transition-colors hover:bg-muted rounded-md",
               viewed
                 ? "border-primary/20 bg-primary/10 text-primary"
                 : "border-border bg-background text-muted-foreground"

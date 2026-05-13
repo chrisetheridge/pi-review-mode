@@ -35,6 +35,7 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
   );
   const [theme, setTheme] = useState<Theme>(readInitialTheme);
   const [viewedPaths, setViewedPaths] = useState<Set<string>>(() => new Set());
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const isDark = theme === "dark";
 
   useEffect(() => {
@@ -129,7 +130,11 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
 
   return (
     <div
-      className={`grid h-screen grid-cols-[300px_minmax(0,1fr)] overflow-hidden bg-background text-foreground ${
+      className={`grid h-screen overflow-hidden bg-background text-foreground transition-[grid-template-columns] duration-200 ${
+        sidebarCollapsed
+          ? "grid-cols-[57px_minmax(0,1fr)]"
+          : "grid-cols-[300px_minmax(0,1fr)]"
+      } ${
         isDark ? "dark" : ""
       } max-[800px]:block max-[800px]:h-auto max-[800px]:min-h-screen max-[800px]:overflow-visible`}
       data-testid="review-app-shell"
@@ -140,8 +145,10 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
           comments={comments}
           selectedPath={selectedPath}
           collapsedPaths={collapsedPaths}
+          sidebarCollapsed={sidebarCollapsed}
           onSelect={setSelectedPath}
           onToggleCollapse={toggleCollapse}
+          onToggleSidebar={() => setSidebarCollapsed((collapsed) => !collapsed)}
         />
       </aside>
       <main className="grid min-w-0 grid-rows-[56px_minmax(0,1fr)_56px] overflow-hidden max-[800px]:block">
