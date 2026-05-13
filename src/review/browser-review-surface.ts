@@ -5,25 +5,41 @@ import { type BrowserOpener, openBrowser } from "./open-browser.js";
 import { ReviewServer, type ReviewServerResult } from "./review-server.js";
 import type { ReviewSnapshot } from "./types.js";
 
+interface BrowserReviewServer {
+  start(): Promise<{ url: string; port: number; token: string }>;
+  waitForCompletion(): Promise<ReviewServerResult>;
+  shutdown(): Promise<void>;
+}
+
 export interface BrowserReviewSurfaceOptions {
   readonly assetsDir?: string;
   readonly opener?: BrowserOpener;
+  readonly onSubmitPrompt?: (prompt: string) => Promise<void> | void;
+  readonly serverFactory?: (snapshot: ReviewSnapshot) => BrowserReviewServer;
 }
 
 export async function openBrowserReviewSurface(
   snapshot: ReviewSnapshot,
   options: BrowserReviewSurfaceOptions = {}
 ): Promise<ReviewServerResult> {
-  const server = new ReviewServer(snapshot, {
-    assetsDir: options.assetsDir ?? defaultAssetsDir()
-  });
+  const server =
+    options.serverFactory?.(snapshot) ??
+    new ReviewServer(snapshot, {
+      assetsDir: options.assetsDir ?? defaultAssetsDir()
+    });
 
   try {
     const started = await server.start();
     await (options.opener ?? openBrowser)(started.url);
-    return await server.waitForCompletion();
-  } finally {
-    await server.shutdown();
+    const result = await server.waitForCompletion();
+    if (result.prompt) {
+      await options.onSubmitPrompt?.(result.prompt);
+    }
+    void server.shutdown().catch(() => undefined);
+    return result;
+  } catch (error) {
+    await server.shutdown().catch(() => undefined);
+    throw error;
   }
 }
 

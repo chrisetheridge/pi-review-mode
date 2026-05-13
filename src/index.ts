@@ -81,14 +81,17 @@ export default function reviewModeExtension(pi: PiExtensionHost) {
           "Opening browser review for a frozen Git snapshot.",
           "info"
         );
-        const result = await openBrowserReviewSurface(snapshot);
+        const result = await openBrowserReviewSurface(snapshot, {
+          onSubmitPrompt: async (prompt) => {
+            await ctx.ui?.setEditorText?.(prompt);
+            await ctx.ui?.notify?.(
+              "Review feedback was written into the editor.",
+              "success"
+            );
+          }
+        });
 
         if (result.prompt) {
-          await ctx.ui?.setEditorText?.(result.prompt);
-          await ctx.ui?.notify?.(
-            "Review feedback was written into the editor.",
-            "success"
-          );
           return;
         }
 
