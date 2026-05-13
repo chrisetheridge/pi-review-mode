@@ -4,10 +4,11 @@
   "rsc": false,
   "tsx": true,
   "tailwind": {
-    "config": "apps/review-web/tailwind.config.ts",
-    "css": "apps/review-web/src/styles.css",
+    "config": "tailwind.config.ts",
+    "css": "src/styles.css",
     "baseColor": "neutral",
-    "cssVariables": true
+    "cssVariables": true,
+    "prefix": ""
   },
   "aliases": {
     "components": "@/components",
@@ -17,6 +18,8 @@
     "hooks": "@/hooks"
   },
   "iconLibrary": "lucide",
+  "rtl": false,
   "menuColor": "default",
-  "menuAccent": "subtle"
+  "menuAccent": "subtle",
+  "registries": {}
 }

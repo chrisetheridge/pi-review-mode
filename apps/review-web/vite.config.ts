@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  root: "apps/review-web",
+  root: ".",
   base: "./",
   resolve: {
     alias: {
