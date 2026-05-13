@@ -1,0 +1,6 @@
+allowBuilds:
+  '@google/genai': true
+  esbuild: true
+  koffi: true
+  msw: false
+  protobufjs: true
