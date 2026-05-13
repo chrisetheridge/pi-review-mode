@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import reviewModeExtension from "../src/index.js";
 import { openBrowserReviewSurface } from "../src/review/browser-review-surface.js";
 
@@ -7,6 +7,10 @@ vi.mock("../src/review/browser-review-surface.js", () => ({
 }));
 
 describe("review command fixture routing", () => {
+  beforeEach(() => {
+    delete process.env.PI_REVIEW_MODE_FIXTURES;
+  });
+
   afterEach(() => {
     delete process.env.PI_REVIEW_MODE_FIXTURES;
     vi.mocked(openBrowserReviewSurface).mockReset();

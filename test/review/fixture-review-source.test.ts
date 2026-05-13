@@ -53,6 +53,18 @@ describe("FixtureReviewSource", () => {
     expect(snapshot.stats.changedLines).toBe(1);
   });
 
+  it("uses nested paths in the bundled mixed fixture", () => {
+    const source = new FixtureReviewSource(process.cwd());
+
+    const snapshot = source.createSnapshot("mixed");
+
+    expect(snapshot.files.map((file) => file.path)).toEqual([
+      "packages/core/src/new-name.ts",
+      "docs/legacy/remove-me.ts",
+      "apps/review-web/src/fixtures/add-me.ts"
+    ]);
+  });
+
   it("uses a stable id for identical fixture contents", () => {
     const { root, source } = makeSource();
     writeFixture(root, "basic", BASIC_DIFF);
