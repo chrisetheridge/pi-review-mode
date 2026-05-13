@@ -88,4 +88,4 @@ Use the smoke scenarios in `README.md` for working-tree review, branch review, e
 - Do not persist review history after the active session lifecycle ends.
 - Do not auto-send generated prompts to an agent.
 - Do not introduce split diff, syntax highlighting, threaded comments, search, or TUI behavior unless the product scope changes.
-- Do not add ADRs yet; this repo is new and `CONTEXT.md` is the current architectural source of truth.
+- Keep ADRs under `docs/adrs/` for approved architectural decisions; `CONTEXT.md` remains the shared domain glossary and boundary summary.

@@ -2,17 +2,16 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { relative } from "node:path";
 import { parseReviewDiff } from "./diff-parser.js";
+import {
+  buildReviewWarnings,
+  calculateReviewStats,
+  enforceReviewThresholds,
+  ReviewSizeError
+} from "./review-size.js";
 import type {
-  ReviewDiffStats,
   ReviewScope,
   ReviewScopeAvailability,
   ReviewSnapshot
-} from "./types.js";
-import {
-  REVIEW_MAX_CHANGED_LINES,
-  REVIEW_MAX_FILES,
-  REVIEW_WARN_CHANGED_LINES,
-  REVIEW_WARN_FILES
 } from "./types.js";
 
 export class GitReviewSourceError extends Error {
@@ -115,9 +114,16 @@ export class GitReviewSource {
     }
 
     const files = parseReviewDiff(diff);
-    const stats = calculateStats(files);
-    enforceThresholds(stats);
-    const warnings = buildWarnings(stats);
+    const stats = calculateReviewStats(files);
+    try {
+      enforceReviewThresholds(stats);
+    } catch (error) {
+      if (error instanceof ReviewSizeError) {
+        throw new GitReviewSourceError(error.message);
+      }
+      throw error;
+    }
+    const warnings = buildReviewWarnings(stats);
 
     return {
       id: createHash("sha256")
@@ -303,43 +309,6 @@ function gitErrorMessage(args: readonly string[], error: unknown): string {
       ? error.stderr.toString("utf8").trim()
       : "";
   return stderr || `Git command failed: git ${args.join(" ")}`;
-}
-
-function calculateStats(
-  files: readonly { additions: number; deletions: number }[]
-): ReviewDiffStats {
-  const additions = files.reduce((total, file) => total + file.additions, 0);
-  const deletions = files.reduce((total, file) => total + file.deletions, 0);
-  return {
-    filesChanged: files.length,
-    additions,
-    deletions,
-    changedLines: additions + deletions
-  };
-}
-
-function enforceThresholds(stats: ReviewDiffStats): void {
-  if (stats.filesChanged > REVIEW_MAX_FILES) {
-    throw new GitReviewSourceError(
-      `Review is too large (${stats.filesChanged} files). Split the review into smaller changes before using /review.`
-    );
-  }
-  if (stats.changedLines > REVIEW_MAX_CHANGED_LINES) {
-    throw new GitReviewSourceError(
-      `Review is too large (${stats.changedLines} changed lines). Split the review into smaller changes before using /review.`
-    );
-  }
-}
-
-function buildWarnings(stats: ReviewDiffStats): string[] {
-  const warnings: string[] = [];
-  if (stats.filesChanged > REVIEW_WARN_FILES) {
-    warnings.push(`Large review: ${stats.filesChanged} files changed.`);
-  }
-  if (stats.changedLines > REVIEW_WARN_CHANGED_LINES) {
-    warnings.push(`Large review: ${stats.changedLines} changed lines.`);
-  }
-  return warnings;
 }
 
 export function repoRelativePath(repoRoot: string, path: string): string {

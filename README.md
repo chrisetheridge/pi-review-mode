@@ -23,6 +23,14 @@ pnpm build
 pi -e ./
 ```
 
+Run a repeatable development-only fixture review without editing files:
+
+```sh
+PI_REVIEW_MODE_FIXTURES=1 pi -e ./
+```
+
+Then run `/review --fixture basic` or `/review --fixture mixed`. Fixture mode is blocked unless `PI_REVIEW_MODE_FIXTURES=1` is set.
+
 The package manifest points Pi at the built extension entry in `dist/extension`, and the extension serves the bundled browser UI from `dist/review-web`.
 
 ## Installation
@@ -104,6 +112,14 @@ Explicit base review:
 ```text
 /review --base main
 ```
+
+Fixture review:
+
+1. Run `PI_REVIEW_MODE_FIXTURES=1 pi -e ./`.
+2. Run `/review --fixture basic`.
+3. Add at least one comment in the browser.
+4. Submit and confirm the generated Markdown appears in the Pi editor.
+5. Unset `PI_REVIEW_MODE_FIXTURES` and confirm `/review --fixture basic` reports that fixtures are development-only.
 
 Close/cancel behavior:
 

@@ -26,4 +26,4 @@ If an agent workflow says to publish to the issue tracker, create a GitHub issue
 
 ## ADR status
 
-There are no ADRs yet. Treat `CONTEXT.md` as the current architectural source of truth until the repo matures and explicit ADRs are added.
+Approved ADRs live under `docs/adrs/`. Read the relevant ADR before changing behavior it governs, and keep `CONTEXT.md` as the shared domain glossary and boundary summary.

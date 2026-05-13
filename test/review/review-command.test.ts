@@ -16,6 +16,25 @@ describe("parseReviewCommand", () => {
     });
   });
 
+  it("parses /review --fixture <name>", () => {
+    expect(parseReviewCommand("/review --fixture basic")).toEqual({
+      kind: "review",
+      fixture: "basic"
+    });
+  });
+
+  it("rejects combining --fixture with --base", () => {
+    expect(() =>
+      parseReviewCommand("/review --fixture basic --base main")
+    ).toThrow("--fixture cannot be combined with --base");
+  });
+
+  it("rejects missing fixture names", () => {
+    expect(() => parseReviewCommand("/review --fixture")).toThrow(
+      "Missing fixture name after --fixture"
+    );
+  });
+
   it("supports quoted branch names", () => {
     expect(parseReviewCommand('/review --base "branch with spaces"')).toEqual({
       kind: "review",
