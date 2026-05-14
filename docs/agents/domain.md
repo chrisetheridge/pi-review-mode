@@ -6,7 +6,7 @@ Always read root `CONTEXT.md` first for shared domain language, boundaries, and 
 
 | Area | Code paths | Read when | Additional docs |
 | ---- | ---------- | --------- | --------------- |
-| Extension command | `src/index.ts`, `src/review/review-command.ts` | Changing `/review` registration, command parsing, UI notifications, scope selection, or editor write behavior. | `docs/prd/2026-05-12-native-review-mode-prd.md`, `docs/superpowers/plans/2026-05-12-native-review-mode.md` |
+| Extension command | `src/index.ts`, `src/review/review-command.ts` | Changing `/review` registration, command parsing, UI notifications, scope selection, or editor write behavior. | `docs/prd/2026-05-12-native-review-mode-prd.md`, `docs/2026-05-12-native-review-mode.md` |
 | Git snapshot backend | `src/review/git-review-source.ts`, `src/review/diff-parser.ts`, `src/review/types.ts` | Changing Git repo detection, base detection, dirty-tree rules, diff capture, thresholds, file status handling, hunks, rows, or anchors. | PRD sections: Command surface, Base branch detection, Comment anchor model, Large diff behavior, Testing strategy |
 | Review session and server | `src/review/review-session.ts`, `src/review/review-server.ts`, `src/review/browser-review-surface.ts`, `src/review/open-browser.ts` | Changing token auth, localhost serving, drafts, heartbeat, close, submit, timeout, browser opening, or lifecycle cleanup. | PRD sections: Draft storage, Security and lifecycle, Data loading |
 | Prompt generation | `src/review/review-prompt-builder.ts` | Changing generated Markdown, comment ordering, hunk snippets, or agent instructions inside submitted feedback. | PRD section: Prompt generation |
@@ -14,7 +14,7 @@ Always read root `CONTEXT.md` first for shared domain language, boundaries, and 
 | Backend tests | `test/review/**` | Adding or changing backend behavior for command parsing, Git fixtures, snapshots, parser, prompt builder, session, or server. | `CONTEXT.md` verification commands |
 | Web UI tests | `apps/review-web/**/*.test.tsx` | Adding or changing UI rendering and browser interaction tests. | PRD acceptance criteria for browser UI and comment behavior |
 | Product behavior | `docs/prd/**` | Clarifying user-visible scope, non-goals, acceptance criteria, or risks. | `CONTEXT.md` boundaries |
-| Implementation planning | `docs/superpowers/plans/**` | Checking original task breakdown, package boundaries, or implementation constraints. | `AGENTS.md` hard constraints |
+| Implementation planning | `docs/*.md`, `docs/specs/**` | Checking original task breakdown, package boundaries, approved feature designs, or implementation constraints. Do not create new project docs under `docs/superpowers/**`. | `AGENTS.md` hard constraints |
 
 ## Issue tracker
 

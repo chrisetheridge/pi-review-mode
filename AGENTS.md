@@ -10,7 +10,7 @@ Before changing code, read:
 2. `docs/agents/domain.md` for area-specific doc routing.
 3. `README.md` for setup and manual smoke tests.
 4. `docs/prd/2026-05-12-native-review-mode-prd.md` when changing user-visible review behavior.
-5. `docs/superpowers/plans/2026-05-12-native-review-mode.md` when checking original implementation constraints.
+5. `docs/2026-05-12-native-review-mode.md` when checking original implementation constraints.
 
 ## Code map
 
@@ -20,7 +20,9 @@ Before changing code, read:
 - `test/review/**` — backend tests and Git fixtures.
 - `apps/review-web/**/*.test.tsx` — web UI component tests.
 - `docs/prd/**` — product requirements.
-- `docs/superpowers/plans/**` — implementation plans and task breakdowns.
+- `docs/specs/**` — approved feature designs/specs.
+- `docs/adrs/**` — architectural decisions.
+- `docs/*.md` — implementation plans and task breakdowns.
 
 ## Hard constraints
 
@@ -76,6 +78,7 @@ pi -e ./
 - `dist/` is generated build output.
 - Do not hand-edit generated files.
 - Prefer extension source changes under `src/**`, browser UI changes under `apps/review-web/**`, tests under `test/**`, and docs under `docs/**`.
+- Do not add new project docs under `docs/superpowers/**`. Put specs in `docs/specs/**`, ADRs in `docs/adrs/**`, PRDs in `docs/prd/**`, agent guidance in `docs/agents/**`, and implementation plans directly under `docs/` unless a more specific repo-owned folder exists.
 
 ## Issue tracker
 
