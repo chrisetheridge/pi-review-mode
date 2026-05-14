@@ -7,6 +7,18 @@ description: Release checklist for pi-review-mode. Use when preparing, checking,
 
 Use this skill only in the `pi-review-mode` repository.
 
+## Normal development on main
+
+When making changes on `main` or preparing changes that will land on `main`:
+
+1. For every user-visible change, add a short entry to `CHANGELOG.md` under `## [Unreleased]`.
+2. Put the entry under the right category: `Added`, `Changed`, or `Fixed`.
+3. Keep entries user-focused. Mention behavior, packaging, docs, or release-impacting changes; avoid noisy internal implementation details unless they affect users or maintainers.
+4. Commit changelog updates with the related change when practical.
+5. Treat `Unreleased` as: committed or merged changes that are not published to npm yet.
+
+Do not move entries out of `Unreleased` during normal development. Move them only when preparing a specific release version.
+
 ## Required changelog handling
 
 Before any release version bump or npm publish:
@@ -39,6 +51,23 @@ Minimal shape:
 ```
 
 If there are no entries for a category in the released section, remove that empty category from the released section. Keep empty categories only under `Unreleased`.
+
+## Release checklist
+
+Use this checklist when cutting and publishing a release:
+
+- [ ] Confirm `CHANGELOG.md` has all user-visible changes under `## [Unreleased]`.
+- [ ] Choose the next SemVer version: patch, minor, or major.
+- [ ] Move `Unreleased` entries into `## [x.y.z] - YYYY-MM-DD`.
+- [ ] Leave a fresh empty `Unreleased` section at the top.
+- [ ] Remove empty categories from the released version section.
+- [ ] Commit the changelog update.
+- [ ] Run `pnpm release:check` and inspect `npm pack --dry-run` output.
+- [ ] Run `pnpm release:patch`, `pnpm release:minor`, or `pnpm release:major`.
+- [ ] Confirm `package.json`, `CHANGELOG.md`, and git tag use the same version.
+- [ ] Run `npm publish`.
+- [ ] Push the release commit and tag with `git push` and `git push --tags`.
+- [ ] Smoke test the published package with `pi -e npm:pi-review-mode@x.y.z`.
 
 ## Pre-release verification
 

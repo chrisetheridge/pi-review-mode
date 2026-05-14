@@ -19,6 +19,21 @@ Keep release notes in `CHANGELOG.md`. Before cutting a release:
 3. Summarize user-visible changes and notable fixes.
 4. Commit the changelog update before running a version command. `pnpm version` expects a clean working tree.
 
+## Release checklist
+
+- [ ] Confirm `CHANGELOG.md` has all user-visible changes under `## [Unreleased]`.
+- [ ] Choose the next SemVer version: patch, minor, or major.
+- [ ] Move `Unreleased` entries into `## [x.y.z] - YYYY-MM-DD`.
+- [ ] Leave a fresh empty `Unreleased` section at the top.
+- [ ] Remove empty categories from the released version section.
+- [ ] Commit the changelog update.
+- [ ] Run `pnpm release:check` and inspect `npm pack --dry-run` output.
+- [ ] Run `pnpm release:patch`, `pnpm release:minor`, or `pnpm release:major`.
+- [ ] Confirm `package.json`, `CHANGELOG.md`, and git tag use the same version.
+- [ ] Run `npm publish`.
+- [ ] Push the release commit and tag with `git push` and `git push --tags`.
+- [ ] Smoke test the published package with `pi -e npm:pi-review-mode@x.y.z`.
+
 ## Pre-release check
 
 Run:
