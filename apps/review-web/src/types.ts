@@ -60,6 +60,8 @@ export interface ReviewSnapshot {
   files: ReviewFileSnapshot[];
 }
 
+export type SavedCommentSource = "user" | "agent";
+
 export interface SavedComment {
   id: string;
   anchorId: string;
@@ -67,6 +69,7 @@ export interface SavedComment {
   body: string;
   createdAt?: string;
   updatedAt?: string;
+  source?: SavedCommentSource;
 }
 
 export interface SaveCommentRequest {

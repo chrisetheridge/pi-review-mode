@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import type { DiffAnchor, SavedComment } from "../types";
@@ -36,6 +37,11 @@ export function SavedCommentCard({
     <Card className="mt-2 max-w-[720px] gap-0 py-0" size="sm">
       <article className="contents">
         <CardContent className="p-2.5">
+          {comment.source === "agent" ? (
+            <Badge variant="secondary" className="mb-2 text-xs">
+              Agent
+            </Badge>
+          ) : null}
           <p className="m-0 whitespace-pre-wrap text-card-foreground">
             {comment.body}
           </p>

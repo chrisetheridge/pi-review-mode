@@ -53,27 +53,20 @@ export class GitReviewSource {
             reason: "No staged, unstaged, or untracked working-tree changes."
           },
       branch: branchBase.available
-        ? workingTreeStatus
-          ? {
-              available: false,
-              reason:
-                "Branch review requires a clean working tree. Commit, stash, or discard local changes first."
+        ? {
+            available: true,
+            scope: {
+              kind: "branch",
+              repoRoot: this.repoRoot,
+              label: `Branch changes since ${branchBase.base}`,
+              base: branchBase.base
             }
-          : {
-              available: true,
-              scope: {
-                kind: "branch",
-                repoRoot: this.repoRoot,
-                label: `Branch changes since ${branchBase.base}`,
-                base: branchBase.base
-              }
-            }
+          }
         : branchBase
     };
   }
 
   createBranchScope(base: string): ReviewScope {
-    this.assertCleanWorkingTree();
     this.assertCommitExists(base, `Base branch '${base}' was not found.`);
     return {
       kind: "branch",
@@ -88,7 +81,6 @@ export class GitReviewSource {
       if (!scope.base) {
         throw new GitReviewSourceError("Branch review requires a base branch.");
       }
-      this.assertCleanWorkingTree();
       this.assertCommitExists(
         scope.base,
         `Base branch '${scope.base}' was not found.`
@@ -224,19 +216,6 @@ export class GitReviewSource {
       reason:
         "No base branch found. Tried upstream, origin/main, origin/master, main, and master."
     };
-  }
-
-  private assertCleanWorkingTree(): void {
-    const status = this.git([
-      "status",
-      "--porcelain=v1",
-      "--untracked-files=all"
-    ]);
-    if (status) {
-      throw new GitReviewSourceError(
-        "Branch review requires a clean working tree. Commit, stash, or discard local changes first."
-      );
-    }
   }
 
   private assertCommitExists(ref: string, message: string): void {

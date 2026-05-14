@@ -31,7 +31,12 @@ diff --git a/two.txt b/two.txt
         body: "line one",
         updatedAt: "now"
       },
-      { anchor: one.anchor, body: "file one", updatedAt: "now" }
+      {
+        anchor: one.anchor,
+        body: "file one",
+        updatedAt: "now",
+        source: "agent"
+      }
     ];
 
     const prompt = buildReviewPrompt(snapshot, drafts);
@@ -45,6 +50,8 @@ diff --git a/two.txt b/two.txt
     expect(prompt).toContain("frozen Git diff snapshot");
     expect(prompt).toContain("```diff");
     expect(prompt).toContain("+add one");
+    expect(prompt).not.toContain("Agent");
+    expect(prompt).not.toContain("source");
   });
 });
 

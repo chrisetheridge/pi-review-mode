@@ -20,8 +20,17 @@ export function parseReviewCommand(input: string): ReviewCommandOptions {
 
   let base: string | undefined;
   let fixture: string | undefined;
+  let agent = false;
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === "--agent") {
+      if (agent) {
+        throw new ReviewCommandParseError("Duplicate --agent flag.");
+      }
+      agent = true;
+      continue;
+    }
+
     if (arg === "--base") {
       if (base !== undefined) {
         throw new ReviewCommandParseError("Duplicate --base flag.");
@@ -64,11 +73,17 @@ export function parseReviewCommand(input: string): ReviewCommandOptions {
       "--fixture cannot be combined with --base."
     );
   }
+  if (fixture && agent) {
+    throw new ReviewCommandParseError(
+      "--fixture cannot be combined with --agent."
+    );
+  }
 
   return {
     kind: "review",
     ...(base ? { base } : {}),
-    ...(fixture ? { fixture } : {})
+    ...(fixture ? { fixture } : {}),
+    ...(agent ? { agent } : {})
   };
 }
 

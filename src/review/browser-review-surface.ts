@@ -3,6 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type BrowserOpener, openBrowser } from "./open-browser.js";
 import { ReviewServer, type ReviewServerResult } from "./review-server.js";
+import type { SeedReviewDraftInput } from "./review-session.js";
 import type { ReviewSnapshot } from "./types.js";
 
 interface BrowserReviewServer {
@@ -15,6 +16,7 @@ export interface BrowserReviewSurfaceOptions {
   readonly assetsDir?: string;
   readonly opener?: BrowserOpener;
   readonly onSubmitPrompt?: (prompt: string) => Promise<void> | void;
+  readonly seedDrafts?: readonly SeedReviewDraftInput[];
   readonly serverFactory?: (snapshot: ReviewSnapshot) => BrowserReviewServer;
   readonly webDevServerUrl?: string;
 }
@@ -31,6 +33,7 @@ export async function openBrowserReviewSurface(
       assetsDir:
         options.assetsDir ??
         (webDevServerUrl ? process.cwd() : defaultAssetsDir()),
+      seedDrafts: options.seedDrafts,
       webDevServerUrl
     });
 

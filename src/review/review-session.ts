@@ -1,6 +1,10 @@
 import { randomBytes } from "node:crypto";
 import { resolveSnapshotAnchor } from "./frozen-snapshot.js";
-import type { ReviewDraft, ReviewSnapshot } from "./types.js";
+import type {
+  ReviewDraft,
+  ReviewDraftSource,
+  ReviewSnapshot
+} from "./types.js";
 
 export class ReviewSessionError extends Error {
   readonly status: number;
@@ -12,10 +16,17 @@ export class ReviewSessionError extends Error {
   }
 }
 
+export interface SeedReviewDraftInput {
+  readonly anchorId: string;
+  readonly body: string;
+  readonly source: ReviewDraftSource;
+}
+
 export interface ReviewSessionOptions {
   readonly ttlMs?: number;
   readonly now?: () => number;
   readonly onClose?: (reason: ReviewSessionCloseReason) => void;
+  readonly seedDrafts?: readonly SeedReviewDraftInput[];
 }
 
 export type ReviewSessionCloseReason =
@@ -42,6 +53,9 @@ export class ReviewSession {
     this.now = options.now ?? Date.now;
     this.onClose = options.onClose;
     this.expiresAt = this.now() + this.ttlMs;
+    for (const seed of options.seedDrafts ?? []) {
+      this.seedDraft(seed);
+    }
   }
 
   isAuthorized(token: string | undefined): boolean {
@@ -63,10 +77,12 @@ export class ReviewSession {
     if (!trimmed) {
       throw new ReviewSessionError("Comment body is required.");
     }
+    const existing = this.drafts.get(anchorId);
     const draft = {
       anchor,
       body: trimmed,
-      updatedAt: new Date(this.now()).toISOString()
+      updatedAt: new Date(this.now()).toISOString(),
+      source: existing?.source ?? "user"
     };
     this.drafts.set(anchorId, draft);
     return draft;
@@ -121,6 +137,19 @@ export class ReviewSession {
 
   isSubmitted(): boolean {
     return this.submitted;
+  }
+
+  private seedDraft(seed: SeedReviewDraftInput): void {
+    const anchor = resolveSnapshotAnchor(this.snapshot, seed.anchorId);
+    if (!anchor) return;
+    const body = seed.body.trim();
+    if (!body) return;
+    this.drafts.set(seed.anchorId, {
+      anchor,
+      body,
+      updatedAt: new Date(this.now()).toISOString(),
+      source: seed.source
+    });
   }
 
   private assertUsable(token: string): void {

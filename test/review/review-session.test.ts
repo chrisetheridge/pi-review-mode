@@ -14,6 +14,29 @@ describe("ReviewSession", () => {
 
     expect(session.listDrafts(session.token)).toHaveLength(1);
     expect(session.listDrafts(session.token)[0].body).toBe("second");
+    expect(session.listDrafts(session.token)[0].source).toBe("user");
+  });
+
+  it("seeds agent drafts and preserves source when edited", () => {
+    const reviewSnapshot = snapshot();
+    const anchorId = reviewSnapshot.files[0].anchor.id;
+    const session = new ReviewSession(reviewSnapshot, {
+      seedDrafts: [
+        {
+          anchorId,
+          body: "agent note",
+          source: "agent"
+        }
+      ]
+    });
+
+    expect(session.listDrafts(session.token)[0].source).toBe("agent");
+
+    session.saveDraft(session.token, anchorId, "edited");
+
+    const draft = session.listDrafts(session.token)[0];
+    expect(draft.body).toBe("edited");
+    expect(draft.source).toBe("agent");
   });
 
   it("rejects submit with zero saved comments", () => {

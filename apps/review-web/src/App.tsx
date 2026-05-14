@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { createReviewApi, type ReviewApi, readTokenFromLocation } from "./api";
-import { FileDiff } from "./components/FileDiff";
+import { FileDiff, fileDiffDomId } from "./components/FileDiff";
 import { FileTree } from "./components/FileTree";
 import { useReviewSurfaceState } from "./use-review-surface-state";
 
@@ -91,6 +91,14 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
     closeWithBeacon: !providedApi
   });
 
+  function selectFile(path: string) {
+    setSelectedPath(path);
+    expandPath(path);
+    document
+      .getElementById(fileDiffDomId(path))
+      ?.scrollIntoView({ block: "start" });
+  }
+
   if (loading) {
     return <main className={themedFullscreen}>Loading review...</main>;
   }
@@ -146,7 +154,7 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
           selectedPath={selectedPath}
           collapsedPaths={collapsedPaths}
           sidebarCollapsed={sidebarCollapsed}
-          onSelect={setSelectedPath}
+          onSelect={selectFile}
           onToggleCollapse={toggleCollapse}
           onToggleSidebar={() => setSidebarCollapsed((collapsed) => !collapsed)}
         />

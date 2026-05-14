@@ -2,6 +2,7 @@ export interface ReviewCommandOptions {
   readonly kind: "review";
   readonly base?: string;
   readonly fixture?: string;
+  readonly agent?: boolean;
 }
 
 export type ReviewScopeKind = "working-tree" | "branch";
@@ -106,10 +107,13 @@ export interface ReviewAnchor {
   readonly lineText?: string;
 }
 
+export type ReviewDraftSource = "user" | "agent";
+
 export interface ReviewDraft {
   readonly anchor: ReviewAnchor;
   readonly body: string;
   readonly updatedAt: string;
+  readonly source?: ReviewDraftSource;
 }
 
 export interface ReviewSubmitResult {

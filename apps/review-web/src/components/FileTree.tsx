@@ -10,7 +10,6 @@ import { useId, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import type { ReviewFileSnapshot, SavedComment } from "../types";
 
 interface FileTreeProps {
@@ -39,26 +38,6 @@ interface FileNode {
 }
 
 type TreeNode = DirectoryNode | FileNode;
-
-const statusLabels: Record<string, string> = {
-  added: "A",
-  modified: "M",
-  deleted: "D",
-  renamed: "R",
-  copied: "C",
-  binary: "B"
-};
-
-const statusClasses: Record<string, string> = {
-  added:
-    "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300",
-  deleted: "border-destructive/20 bg-destructive/10 text-destructive",
-  renamed:
-    "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300",
-  copied: "border-primary/20 bg-primary/10 text-primary",
-  binary: "border-border bg-muted text-muted-foreground",
-  modified: "border-border bg-secondary text-secondary-foreground"
-};
 
 function buildTree(files: ReviewFileSnapshot[]) {
   const root: DirectoryNode = {
