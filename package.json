@@ -10,6 +10,8 @@
   "files": [
     "dist",
     "README.md",
+    "RELEASE.md",
+    "CHANGELOG.md",
     "CONTEXT.md",
     "package.json"
   ],
@@ -20,6 +22,10 @@
     "build:web": "pnpm --filter pi-review-mode-review-web build",
     "dev:web": "pnpm --filter pi-review-mode-review-web dev",
     "check": "npm run biome:check && npm run typecheck && npm run test -- --run",
+    "release:check": "pnpm check && pnpm build && npm pack --dry-run",
+    "release:patch": "pnpm release:check && pnpm version patch",
+    "release:minor": "pnpm release:check && pnpm version minor",
+    "release:major": "pnpm release:check && pnpm version major",
     "biome:check": "biome check .",
     "biome:format": "biome format --write .",
     "test": "vitest",
