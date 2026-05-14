@@ -96,6 +96,10 @@ function fallbackPatch(file: ReviewFileSnapshot) {
   return `${lines.join("\n")}\n`;
 }
 
+export function fileDiffDomId(path: string) {
+  return `review-file-${encodeURIComponent(path)}`;
+}
+
 export function FileDiff({
   file,
   collapsed,
@@ -174,6 +178,7 @@ export function FileDiff({
 
   return (
     <section
+      id={fileDiffDomId(file.path)}
       className="mb-4 overflow-hidden border border-border bg-card text-card-foreground shadow-xs rounded-md"
       aria-label={`Diff for ${file.path}`}
     >

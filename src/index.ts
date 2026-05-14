@@ -18,10 +18,10 @@ type PiCommandContext = {
       message: string,
       kind?: "info" | "success" | "warning" | "error"
     ) => Promise<void> | void;
-    select?: <T>(
+    select?: (
       message: string,
-      options: Array<{ label: string; value: T; description?: string }>
-    ) => Promise<T | undefined>;
+      options: string[]
+    ) => Promise<string | undefined>;
     setEditorText?: (text: string) => Promise<void> | void;
     setWorkingMessage?: (message?: string) => void;
   };
@@ -277,31 +277,17 @@ async function selectReviewScope(
   ctx: PiCommandContext
 ): Promise<ReviewScope | undefined> {
   const availability = source.getAvailability();
-  const options: Array<{
-    label: string;
-    value: ReviewScope;
-    description?: string;
-  }> = [];
+  const options: ReviewScope[] = [];
   const unavailable: string[] = [];
 
   if (availability.workingTree.available) {
-    options.push({
-      label: availability.workingTree.scope.label,
-      value: availability.workingTree.scope,
-      description:
-        "Review staged, unstaged, and untracked changes against HEAD."
-    });
+    options.push(availability.workingTree.scope);
   } else {
     unavailable.push(`Working tree: ${availability.workingTree.reason}`);
   }
 
   if (availability.branch.available) {
-    options.push({
-      label: availability.branch.scope.label,
-      value: availability.branch.scope,
-      description:
-        "Review committed branch changes from the merge-base to HEAD."
-    });
+    options.push(availability.branch.scope);
   } else {
     unavailable.push(`Branch: ${availability.branch.reason}`);
   }
@@ -315,8 +301,12 @@ async function selectReviewScope(
   }
 
   if (options.length === 1) {
-    return options[0].value;
+    return options[0];
   }
 
-  return ctx.ui?.select?.("Choose changes to review", options);
+  const selectedLabel = await ctx.ui?.select?.(
+    "Choose changes to review",
+    options.map((option) => option.label)
+  );
+  return options.find((option) => option.label === selectedLabel);
 }

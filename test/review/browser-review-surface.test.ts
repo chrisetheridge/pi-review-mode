@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { openBrowserReviewSurface } from "../../src/review/browser-review-surface.js";
 import { parseReviewDiff } from "../../src/review/diff-parser.js";
@@ -31,6 +32,39 @@ function snapshot(): ReviewSnapshot {
 }
 
 describe("openBrowserReviewSurface", () => {
+  it("resolves as closed when a seeded review is closed", async () => {
+    const reviewSnapshot = snapshot();
+    const result = await Promise.race([
+      openBrowserReviewSurface(reviewSnapshot, {
+        assetsDir: join(process.cwd(), "test/fixtures/review-assets"),
+        seedDrafts: [
+          {
+            anchorId: reviewSnapshot.files[0].anchor.id,
+            body: "seeded note",
+            source: "agent"
+          }
+        ],
+        opener: async (url) => {
+          const opened = new URL(url);
+          const closeUrl = new URL("/api/close", url);
+          closeUrl.searchParams.set(
+            "token",
+            opened.searchParams.get("token") ?? ""
+          );
+          await fetch(closeUrl, { method: "POST" });
+        }
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("seeded review close timed out")),
+          250
+        )
+      )
+    ]);
+
+    expect(result).toEqual({ closed: true });
+  });
+
   it("calls the submit callback before server shutdown finishes", async () => {
     let finishShutdown!: () => void;
     let shutdownStarted = false;

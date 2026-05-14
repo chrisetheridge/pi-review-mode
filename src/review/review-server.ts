@@ -7,13 +7,18 @@ import {
 } from "node:http";
 import { extname, join, normalize } from "node:path";
 import { completeReview } from "./review-completion.js";
-import { ReviewSession, ReviewSessionError } from "./review-session.js";
+import {
+  ReviewSession,
+  ReviewSessionError,
+  type SeedReviewDraftInput
+} from "./review-session.js";
 import type { ReviewSnapshot } from "./types.js";
 
 export interface ReviewServerOptions {
   readonly assetsDir: string;
   readonly port?: number;
   readonly session?: ReviewSession;
+  readonly seedDrafts?: readonly SeedReviewDraftInput[];
   readonly webDevServerUrl?: string;
 }
 
@@ -48,6 +53,7 @@ export class ReviewServer {
     this.session =
       options.session ??
       new ReviewSession(snapshot, {
+        seedDrafts: options.seedDrafts,
         onClose: (reason) => {
           if (reason !== "submit") {
             this.completeOnce({ closed: true });

@@ -94,15 +94,19 @@ describe("GitReviewSource", () => {
     expect(snapshot.stats.changedLines).toBe(0);
   });
 
-  it("enforces clean tree for branch snapshots", () => {
+  it("allows branch snapshots when the working tree has local changes", () => {
     const repo = fixture();
     repo.git(["checkout", "-b", "feature"]);
+    repo.write("feature.txt", "feature\n");
+    repo.git(["add", "feature.txt"]);
+    repo.git(["commit", "-m", "feature"]);
     repo.write("dirty.txt", "dirty\n");
     const source = new GitReviewSource(repo.root);
 
-    expect(() => source.createBranchScope("main")).toThrow(
-      "requires a clean working tree"
-    );
+    const scope = source.createBranchScope("main");
+    const snapshot = source.createSnapshot(scope);
+
+    expect(snapshot.files.map((file) => file.path)).toEqual(["feature.txt"]);
   });
 
   it("creates branch snapshots from merge-base to HEAD", () => {

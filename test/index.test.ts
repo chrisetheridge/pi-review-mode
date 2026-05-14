@@ -8,6 +8,15 @@ vi.mock("../src/review/browser-review-surface.js", () => ({
   openBrowserReviewSurface: vi.fn()
 }));
 
+const gitSourceMock = vi.hoisted(() => ({
+  availability: undefined as
+    | {
+        workingTree: unknown;
+        branch: unknown;
+      }
+    | undefined
+}));
+
 vi.mock("../src/review/git-review-source.js", () => ({
   GitReviewSource: class {
     createBranchScope(base: string) {
@@ -24,10 +33,12 @@ vi.mock("../src/review/git-review-source.js", () => ({
     }
 
     getAvailability() {
-      return {
-        workingTree: { available: false, reason: "none" },
-        branch: { available: false, reason: "none" }
-      };
+      return (
+        gitSourceMock.availability ?? {
+          workingTree: { available: false, reason: "none" },
+          branch: { available: false, reason: "none" }
+        }
+      );
     }
   }
 }));
@@ -39,6 +50,7 @@ describe("review command fixture routing", () => {
 
   afterEach(() => {
     delete process.env.PI_REVIEW_MODE_FIXTURES;
+    gitSourceMock.availability = undefined;
     vi.mocked(openBrowserReviewSurface).mockReset();
   });
 
@@ -66,6 +78,49 @@ describe("review command fixture routing", () => {
       "error"
     );
     expect(openBrowserReviewSurface).not.toHaveBeenCalled();
+  });
+
+  it("passes readable labels to the review scope picker", async () => {
+    let handler:
+      | Parameters<
+          Parameters<typeof reviewModeExtension>[0]["registerCommand"]
+        >[1]["handler"]
+      | undefined;
+    const workingTreeScope = {
+      kind: "working-tree" as const,
+      repoRoot: "/repo",
+      label: "Working tree changes"
+    };
+    const branchScope = {
+      kind: "branch" as const,
+      repoRoot: "/repo",
+      label: "Branch vs main",
+      base: "main"
+    };
+    gitSourceMock.availability = {
+      workingTree: { available: true, scope: workingTreeScope },
+      branch: { available: true, scope: branchScope }
+    };
+    const select = vi.fn().mockResolvedValue("Branch vs main");
+    vi.mocked(openBrowserReviewSurface).mockResolvedValue({ closed: true });
+
+    reviewModeExtension({
+      registerCommand(_name, command) {
+        handler = command.handler;
+      }
+    });
+
+    await handler?.("", {
+      cwd: process.cwd(),
+      hasUI: true,
+      ui: { notify: vi.fn(), select }
+    });
+
+    expect(select).toHaveBeenCalledWith("Choose changes to review", [
+      "Working tree changes",
+      "Branch vs main"
+    ]);
+    expect(openBrowserReviewSurface).toHaveBeenCalled();
   });
 
   it("sends a hidden agent pre-review message and seeds submitted comments", async () => {
