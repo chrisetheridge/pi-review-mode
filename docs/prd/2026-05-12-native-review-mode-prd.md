@@ -350,3 +350,11 @@ Library guidance:
 - Editor overwrite semantics may surprise users, though MVP intentionally keeps the user in control.
 - Base branch detection can be wrong in unusual branch setups.
 - Third-party parser or UI dependencies can constrain behavior if chosen too early without validating edge cases.
+
+## Amendment: Glimpse native review surface
+
+The implementation may replace the tokenized localhost browser surface with a Glimpse native WebView surface. In that architecture, the frozen snapshot and saved drafts remain in the Pi extension process, and the UI communicates through Glimpse request/response messages instead of HTTP endpoints.
+
+This removes the need for localhost token authorization, heartbeat expiry, CORS handling, and a close endpoint. The security boundary becomes process ownership of the Glimpse child window plus the existing frozen snapshot invariant: the review UI must not inspect or mutate the working tree.
+
+The user-visible behavior remains the same: `/review` opens a review UI, saved comments are submitted into a generated Markdown prompt, and Pi writes that prompt into the active editor without automatically sending it to the agent.

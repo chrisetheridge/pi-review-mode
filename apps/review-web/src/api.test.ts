@@ -1,18 +1,68 @@
 import { describe, expect, it } from "vitest";
-import { normalizeDraftForTest, readApiBaseUrlFromLocation } from "./api";
+import {
+  normalizeDraftForTest,
+  normalizeReviewSnapshotForTransport,
+  normalizeSavedCommentForTransport,
+  normalizeSavedCommentsForTransport
+} from "./api";
 
-describe("readApiBaseUrlFromLocation", () => {
-  it("reads the API base URL from the review page query string", () => {
-    const location = new URL(
-      "http://127.0.0.1:5173/?token=test&apiBaseUrl=http%3A%2F%2F127.0.0.1%3A4321"
-    ) as unknown as Location;
+describe("transport normalization", () => {
+  it("normalizes a direct snapshot payload", () => {
+    expect(
+      normalizeReviewSnapshotForTransport({
+        id: "s1",
+        scope: { label: "Working tree" },
+        stats: { filesChanged: 1, additions: 2, deletions: 3 },
+        files: [
+          {
+            path: "file.txt",
+            status: "modified",
+            additions: 2,
+            deletions: 3,
+            binary: false,
+            anchor: { id: "file:file.txt", path: "file.txt", side: "file" },
+            hunks: []
+          }
+        ]
+      })
+    ).toMatchObject({
+      id: "s1",
+      title: "Working tree",
+      stats: { filesChanged: 1, additions: 2, deletions: 3 },
+      files: [
+        {
+          path: "file.txt",
+          fileAnchor: {
+            id: "file:file.txt",
+            filePath: "file.txt",
+            side: "file"
+          }
+        }
+      ]
+    });
+  });
 
-    expect(readApiBaseUrlFromLocation(location)).toBe("http://127.0.0.1:4321");
+  it("normalizes direct draft arrays and single drafts", () => {
+    const draft = {
+      anchor: { id: "a1", path: "file.txt", side: "file" },
+      body: "note",
+      updatedAt: "2026-05-14T00:00:00.000Z",
+      source: "agent"
+    };
+
+    expect(normalizeSavedCommentForTransport(draft)).toMatchObject({
+      id: "a1",
+      anchorId: "a1",
+      filePath: "file.txt",
+      body: "note",
+      source: "agent"
+    });
+    expect(normalizeSavedCommentsForTransport([draft])).toHaveLength(1);
   });
 });
 
 describe("normalizeDraftForTest", () => {
-  it("normalizes draft source from API payloads", () => {
+  it("normalizes draft source from bridge payloads", () => {
     expect(
       normalizeDraftForTest({
         draft: {

@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import reviewModeExtension from "../src/index.js";
-import { openBrowserReviewSurface } from "../src/review/browser-review-surface.js";
 import { parseReviewDiff } from "../src/review/diff-parser.js";
+import { openGlimpseReviewSurface } from "../src/review/glimpse-review-surface.js";
 import type { ReviewSnapshot } from "../src/review/types.js";
 
-vi.mock("../src/review/browser-review-surface.js", () => ({
-  openBrowserReviewSurface: vi.fn()
+vi.mock("../src/review/glimpse-review-surface.js", () => ({
+  openGlimpseReviewSurface: vi.fn()
 }));
 
 const gitSourceMock = vi.hoisted(() => ({
@@ -51,7 +51,7 @@ describe("review command fixture routing", () => {
   afterEach(() => {
     delete process.env.PI_REVIEW_MODE_FIXTURES;
     gitSourceMock.availability = undefined;
-    vi.mocked(openBrowserReviewSurface).mockReset();
+    vi.mocked(openGlimpseReviewSurface).mockReset();
   });
 
   it("blocks --fixture unless PI_REVIEW_MODE_FIXTURES=1", async () => {
@@ -77,7 +77,7 @@ describe("review command fixture routing", () => {
       "Review fixtures are development-only. Set PI_REVIEW_MODE_FIXTURES=1 to use /review --fixture.",
       "error"
     );
-    expect(openBrowserReviewSurface).not.toHaveBeenCalled();
+    expect(openGlimpseReviewSurface).not.toHaveBeenCalled();
   });
 
   it("passes readable labels to the review scope picker", async () => {
@@ -102,7 +102,7 @@ describe("review command fixture routing", () => {
       branch: { available: true, scope: branchScope }
     };
     const select = vi.fn().mockResolvedValue("Branch vs main");
-    vi.mocked(openBrowserReviewSurface).mockResolvedValue({ closed: true });
+    vi.mocked(openGlimpseReviewSurface).mockResolvedValue({ closed: true });
 
     reviewModeExtension({
       registerCommand(_name, command) {
@@ -120,7 +120,7 @@ describe("review command fixture routing", () => {
       "Working tree changes",
       "Branch vs main"
     ]);
-    expect(openBrowserReviewSurface).toHaveBeenCalled();
+    expect(openGlimpseReviewSurface).toHaveBeenCalled();
   });
 
   it("sends a hidden agent pre-review message and seeds submitted comments", async () => {
@@ -146,7 +146,7 @@ describe("review command fixture routing", () => {
     const waitForIdle = vi.fn().mockResolvedValue(undefined);
     const notify = vi.fn();
     const setWorkingMessage = vi.fn();
-    vi.mocked(openBrowserReviewSurface).mockResolvedValue({ closed: true });
+    vi.mocked(openGlimpseReviewSurface).mockResolvedValue({ closed: true });
 
     reviewModeExtension({
       registerCommand(_name, command) {
@@ -174,7 +174,7 @@ describe("review command fixture routing", () => {
       }),
       { triggerTurn: true, deliverAs: "followUp" }
     );
-    expect(openBrowserReviewSurface).toHaveBeenCalledWith(
+    expect(openGlimpseReviewSurface).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({
         seedDrafts: [
@@ -201,7 +201,7 @@ describe("review command fixture routing", () => {
       | undefined;
     const sendMessage = vi.fn();
     const waitForIdle = vi.fn().mockResolvedValue(undefined);
-    vi.mocked(openBrowserReviewSurface).mockResolvedValue({ closed: true });
+    vi.mocked(openGlimpseReviewSurface).mockResolvedValue({ closed: true });
 
     reviewModeExtension({
       registerCommand(_name, command) {
@@ -217,7 +217,7 @@ describe("review command fixture routing", () => {
       ui: { notify: vi.fn(), setWorkingMessage: vi.fn() }
     });
 
-    expect(openBrowserReviewSurface).toHaveBeenCalledWith(
+    expect(openGlimpseReviewSurface).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({ seedDrafts: [] })
     );

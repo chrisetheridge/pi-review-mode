@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { closeReviewWithBeacon, type ReviewApi } from "./api";
+import { useCallback, useEffect, useState } from "react";
+import type { ReviewTransport } from "./review-transport";
 import type { DiffAnchor, ReviewSnapshot, SavedComment } from "./types";
 
 interface ActiveEditor {
@@ -7,15 +7,11 @@ interface ActiveEditor {
 }
 
 interface UseReviewSurfaceStateOptions {
-  api: ReviewApi;
-  token: string;
-  closeWithBeacon?: boolean;
+  transport: ReviewTransport;
 }
 
 export function useReviewSurfaceState({
-  api,
-  token,
-  closeWithBeacon = true
+  transport
 }: UseReviewSurfaceStateOptions) {
   const [snapshot, setSnapshot] = useState<ReviewSnapshot | null>(null);
   const [comments, setComments] = useState<SavedComment[]>([]);
@@ -25,30 +21,21 @@ export function useReviewSurfaceState({
     () => new Set()
   );
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(
-    token ? null : "Missing review token."
-  );
+  const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submittedPrompt, setSubmittedPrompt] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
     let cancelled = false;
     async function load() {
       setLoading(true);
       setError(null);
       try {
-        const [nextSnapshot, nextComments] = await Promise.all([
-          api.getSnapshot(),
-          api.getDrafts()
-        ]);
+        const result = await transport.load();
         if (cancelled) return;
-        setSnapshot(nextSnapshot);
-        setComments(nextComments);
-        setSelectedPath(nextSnapshot.files[0]?.path ?? null);
+        setSnapshot(result.snapshot);
+        setComments(result.drafts);
+        setSelectedPath(result.snapshot.files[0]?.path ?? null);
       } catch (err) {
         if (!cancelled) {
           setError(
@@ -63,55 +50,45 @@ export function useReviewSurfaceState({
     return () => {
       cancelled = true;
     };
-  }, [api, token]);
+  }, [transport]);
 
-  useEffect(() => {
-    if (!token) return;
-    const interval = window.setInterval(() => {
-      void api.heartbeat().catch(() => undefined);
-    }, 15_000);
-    void api.heartbeat().catch(() => undefined);
-    return () => window.clearInterval(interval);
-  }, [api, token]);
-
-  useEffect(() => {
-    if (!token || !closeWithBeacon) return;
-    const closeOnPageHide = () => closeReviewWithBeacon(token);
-    window.addEventListener("pagehide", closeOnPageHide);
-    return () => window.removeEventListener("pagehide", closeOnPageHide);
-  }, [closeWithBeacon, token]);
-
-  function startComment(anchor: DiffAnchor) {
+  const startComment = useCallback((anchor: DiffAnchor) => {
     setActiveEditors((current) =>
       current.some((editor) => editor.anchor.id === anchor.id)
         ? current
         : [...current, { anchor }]
     );
-  }
+  }, []);
 
-  function cancelEditor(anchorId: string) {
+  const cancelEditor = useCallback((anchorId: string) => {
     setActiveEditors((current) =>
       current.filter((editor) => editor.anchor.id !== anchorId)
     );
-  }
+  }, []);
 
-  async function saveComment(anchor: DiffAnchor, body: string) {
-    const saved = await api.saveDraft({ anchor, body });
-    setComments((current) => [
-      saved,
-      ...current.filter((comment) => comment.anchorId !== saved.anchorId)
-    ]);
-    cancelEditor(anchor.id);
-  }
+  const saveComment = useCallback(
+    async (anchor: DiffAnchor, body: string) => {
+      const saved = await transport.saveDraft({ anchor, body });
+      setComments((current) => [
+        saved,
+        ...current.filter((comment) => comment.anchorId !== saved.anchorId)
+      ]);
+      cancelEditor(anchor.id);
+    },
+    [cancelEditor, transport]
+  );
 
-  async function deleteComment(anchorId: string) {
-    await api.deleteDraft(anchorId);
-    setComments((current) =>
-      current.filter((comment) => comment.anchorId !== anchorId)
-    );
-  }
+  const deleteComment = useCallback(
+    async (anchorId: string) => {
+      await transport.deleteDraft(anchorId);
+      setComments((current) =>
+        current.filter((comment) => comment.anchorId !== anchorId)
+      );
+    },
+    [transport]
+  );
 
-  function toggleCollapse(path: string) {
+  const toggleCollapse = useCallback((path: string) => {
     setCollapsedPaths((current) => {
       const next = new Set(current);
       if (next.has(path)) {
@@ -121,9 +98,9 @@ export function useReviewSurfaceState({
       }
       return next;
     });
-  }
+  }, []);
 
-  function collapsePath(path: string) {
+  const collapsePath = useCallback((path: string) => {
     setCollapsedPaths((current) => {
       if (current.has(path)) {
         return current;
@@ -132,9 +109,9 @@ export function useReviewSurfaceState({
       next.add(path);
       return next;
     });
-  }
+  }, []);
 
-  function expandPath(path: string) {
+  const expandPath = useCallback((path: string) => {
     setCollapsedPaths((current) => {
       if (!current.has(path)) {
         return current;
@@ -143,13 +120,13 @@ export function useReviewSurfaceState({
       next.delete(path);
       return next;
     });
-  }
+  }, []);
 
-  async function closeReview() {
-    await api.close();
-  }
+  const closeReview = useCallback(async () => {
+    await transport.close();
+  }, [transport]);
 
-  async function submitReview() {
+  const submitReview = useCallback(async () => {
     setSubmitError(null);
     if (comments.length === 0) {
       setSubmitError("Add at least one saved comment before submitting.");
@@ -160,14 +137,14 @@ export function useReviewSurfaceState({
       return;
     }
     try {
-      const response = await api.submit();
+      const response = await transport.submit();
       setSubmittedPrompt(response.prompt);
     } catch (err) {
       setSubmitError(
         err instanceof Error ? err.message : "Unable to submit review."
       );
     }
-  }
+  }, [activeEditors.length, comments.length, transport]);
 
   return {
     snapshot,

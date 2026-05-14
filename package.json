@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "packageManager": "pnpm@11.0.0",
-  "description": "Pi extension that opens a local browser review surface for frozen Git diffs.",
+  "description": "Pi extension that opens a native review surface for frozen Git diffs.",
   "keywords": [
     "pi-package"
   ],
@@ -28,11 +28,12 @@
   },
   "pi": {
     "extensions": [
-      "./src/index.ts"
+      "./dist/extension/src/index.js"
     ]
   },
   "dependencies": {
     "gitdiff-parser": "^0.3.1",
+    "glimpseui": "^0.8.0",
     "typebox": "^1.1.38"
   },
   "peerDependencies": {

@@ -1,19 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { createReviewApi, type ReviewApi, readTokenFromLocation } from "./api";
 import { FileDiff, fileDiffDomId } from "./components/FileDiff";
 import { FileTree } from "./components/FileTree";
+import { createGlimpseReviewTransport } from "./glimpse-transport";
+import type { ReviewTransport } from "./review-transport";
+import type { DiffAnchor, SavedComment } from "./types";
 import { useReviewSurfaceState } from "./use-review-surface-state";
 
 interface AppProps {
-  api?: ReviewApi;
-  token?: string;
+  transport?: ReviewTransport;
 }
 
 type Theme = "light" | "dark";
 
 const THEME_STORAGE_KEY = "pi-review-mode-theme";
+const EMPTY_COMMENTS: SavedComment[] = [];
+const EMPTY_EDITORS: { anchor: DiffAnchor }[] = [];
 
 function readInitialTheme(): Theme {
   try {
@@ -27,11 +30,10 @@ function readInitialTheme(): Theme {
   return "light";
 }
 
-export function App({ api: providedApi, token: providedToken }: AppProps) {
-  const token = providedToken ?? readTokenFromLocation();
-  const api = useMemo(
-    () => providedApi ?? createReviewApi(token),
-    [providedApi, token]
+export function App({ transport: providedTransport }: AppProps) {
+  const transport = useMemo(
+    () => providedTransport ?? createGlimpseReviewTransport(),
+    [providedTransport]
   );
   const [theme, setTheme] = useState<Theme>(readInitialTheme);
   const [viewedPaths, setViewedPaths] = useState<Set<string>>(() => new Set());
@@ -45,20 +47,6 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
       // Ignore storage access failures. The in-memory toggle still works.
     }
   }, [theme]);
-
-  function toggleViewed(path: string) {
-    setViewedPaths((current) => {
-      const next = new Set(current);
-      if (next.has(path)) {
-        next.delete(path);
-        expandPath(path);
-      } else {
-        next.add(path);
-        collapsePath(path);
-      }
-      return next;
-    });
-  }
 
   const themedFullscreen = `grid min-h-screen place-content-center bg-background p-6 text-center text-foreground ${
     isDark ? "dark" : ""
@@ -86,18 +74,45 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
     closeReview,
     submitReview
   } = useReviewSurfaceState({
-    api,
-    token,
-    closeWithBeacon: !providedApi
+    transport
   });
 
-  function selectFile(path: string) {
-    setSelectedPath(path);
-    expandPath(path);
-    document
-      .getElementById(fileDiffDomId(path))
-      ?.scrollIntoView({ block: "start" });
-  }
+  const toggleViewed = useCallback(
+    (path: string) => {
+      setViewedPaths((current) => {
+        const next = new Set(current);
+        if (next.has(path)) {
+          next.delete(path);
+          expandPath(path);
+        } else {
+          next.add(path);
+          collapsePath(path);
+        }
+        return next;
+      });
+    },
+    [collapsePath, expandPath]
+  );
+
+  const commentsByFile = useMemo(
+    () => groupByFilePath(comments, (comment) => comment.filePath),
+    [comments]
+  );
+  const activeEditorsByFile = useMemo(
+    () => groupByFilePath(activeEditors, (editor) => editor.anchor.filePath),
+    [activeEditors]
+  );
+
+  const selectFile = useCallback(
+    (path: string) => {
+      setSelectedPath(path);
+      expandPath(path);
+      document
+        .getElementById(fileDiffDomId(path))
+        ?.scrollIntoView({ block: "start" });
+    },
+    [expandPath, setSelectedPath]
+  );
 
   if (loading) {
     return <main className={themedFullscreen}>Loading review...</main>;
@@ -211,12 +226,10 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
               key={file.path}
               file={file}
               collapsed={collapsedPaths.has(file.path)}
-              comments={comments.filter(
-                (comment) => comment.filePath === file.path
-              )}
-              activeEditors={activeEditors.filter(
-                (editor) => editor.anchor.filePath === file.path
-              )}
+              comments={commentsByFile.get(file.path) ?? EMPTY_COMMENTS}
+              activeEditors={
+                activeEditorsByFile.get(file.path) ?? EMPTY_EDITORS
+              }
               viewed={viewedPaths.has(file.path)}
               onToggleViewed={toggleViewed}
               onToggleCollapse={toggleCollapse}
@@ -225,6 +238,7 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
               onSaveComment={saveComment}
               onDeleteComment={deleteComment}
               theme={theme}
+              virtualizeBody
             />
           ))}
         </section>
@@ -253,4 +267,21 @@ export function App({ api: providedApi, token: providedToken }: AppProps) {
       </main>
     </div>
   );
+}
+
+function groupByFilePath<T>(
+  items: T[],
+  getFilePath: (item: T) => string
+): Map<string, T[]> {
+  const grouped = new Map<string, T[]>();
+  for (const item of items) {
+    const filePath = getFilePath(item);
+    const existing = grouped.get(filePath);
+    if (existing) {
+      existing.push(item);
+    } else {
+      grouped.set(filePath, [item]);
+    }
+  }
+  return grouped;
 }
