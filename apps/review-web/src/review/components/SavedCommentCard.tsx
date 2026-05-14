@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import type { DiffAnchor, SavedComment } from "../types";
+import type { DiffAnchor, SavedComment } from "../model";
 import { CommentEditor } from "./CommentEditor";
 
 interface SavedCommentCardProps {

@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import reviewModeExtension from "../src/index.js";
-import { parseReviewDiff } from "../src/review/diff-parser.js";
-import { openGlimpseReviewSurface } from "../src/review/glimpse-review-surface.js";
-import type { ReviewSnapshot } from "../src/review/types.js";
+import type { ReviewSnapshot } from "../src/review/index.js";
+import { parseReviewDiff } from "../src/review/snapshot/parse-diff.js";
+import { openGlimpseReviewSurface } from "../src/review/surface/glimpse.js";
 
-vi.mock("../src/review/glimpse-review-surface.js", () => ({
+vi.mock("../src/review/surface/glimpse.js", () => ({
   openGlimpseReviewSurface: vi.fn()
 }));
 
@@ -17,7 +17,7 @@ const gitSourceMock = vi.hoisted(() => ({
     | undefined
 }));
 
-vi.mock("../src/review/git-review-source.js", () => ({
+vi.mock("../src/review/source/git.js", () => ({
   GitReviewSource: class {
     createBranchScope(base: string) {
       return {

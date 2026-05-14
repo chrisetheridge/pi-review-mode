@@ -1,34 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { FileDiff, fileDiffDomId } from "./components/FileDiff";
-import { FileTree } from "./components/FileTree";
-import { createGlimpseReviewTransport } from "./glimpse-transport";
-import type { ReviewTransport } from "./review-transport";
-import type { DiffAnchor, SavedComment } from "./types";
-import { useReviewSurfaceState } from "./use-review-surface-state";
+import { FileDiff, fileDiffDomId } from "../review/components/FileDiff";
+import { FileTree } from "../review/components/FileTree";
+import type { DiffAnchor, SavedComment } from "../review/model";
+import { useReviewSurfaceState } from "../review/state/useReviewState";
+import { createGlimpseReviewTransport } from "../review/transport/glimpse";
+import type { ReviewTransport } from "../review/transport/types";
+import { groupByFilePath } from "./group-by-file";
+import { readInitialTheme, storeTheme, type Theme } from "./theme";
 
 interface AppProps {
   transport?: ReviewTransport;
 }
 
-type Theme = "light" | "dark";
-
-const THEME_STORAGE_KEY = "pi-review-mode-theme";
 const EMPTY_COMMENTS: SavedComment[] = [];
 const EMPTY_EDITORS: { anchor: DiffAnchor }[] = [];
-
-function readInitialTheme(): Theme {
-  try {
-    const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
-    if (saved === "light" || saved === "dark") {
-      return saved;
-    }
-  } catch {
-    // Ignore storage access failures and keep the production light default.
-  }
-  return "light";
-}
 
 export function App({ transport: providedTransport }: AppProps) {
   const transport = useMemo(
@@ -41,11 +28,7 @@ export function App({ transport: providedTransport }: AppProps) {
   const isDark = theme === "dark";
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
-    } catch {
-      // Ignore storage access failures. The in-memory toggle still works.
-    }
+    storeTheme(theme);
   }, [theme]);
 
   const themedFullscreen = `grid min-h-screen place-content-center bg-background p-6 text-center text-foreground ${
@@ -267,21 +250,4 @@ export function App({ transport: providedTransport }: AppProps) {
       </main>
     </div>
   );
-}
-
-function groupByFilePath<T>(
-  items: T[],
-  getFilePath: (item: T) => string
-): Map<string, T[]> {
-  const grouped = new Map<string, T[]>();
-  for (const item of items) {
-    const filePath = getFilePath(item);
-    const existing = grouped.get(filePath);
-    if (existing) {
-      existing.push(item);
-    } else {
-      grouped.set(filePath, [item]);
-    }
-  }
-  return grouped;
 }
