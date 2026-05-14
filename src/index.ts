@@ -4,9 +4,9 @@ import {
   agentCommentsToSeedDrafts
 } from "./review/agent-review.js";
 import { buildAgentReviewPrompt } from "./review/agent-review-prompt.js";
-import { openBrowserReviewSurface } from "./review/browser-review-surface.js";
 import { FixtureReviewSource } from "./review/fixture-review-source.js";
 import { GitReviewSource } from "./review/git-review-source.js";
+import { openGlimpseReviewSurface } from "./review/glimpse-review-surface.js";
 import { parseReviewCommand } from "./review/review-command.js";
 import type { ReviewScope, ReviewSnapshot } from "./review/types.js";
 
@@ -120,14 +120,15 @@ export default function reviewModeExtension(pi: PiExtensionHost) {
   });
 
   pi.registerCommand("review", {
-    description: "Open a browser UI for commenting on a frozen Git diff.",
+    description:
+      "Open a native review window for commenting on a frozen Git diff.",
     async handler(args, ctx) {
       try {
         const options = parseReviewCommand(commandInput(args));
 
         if (!ctx.hasUI) {
           await ctx.ui?.notify?.(
-            "Browser review requires an interactive Pi UI.",
+            "Review mode requires an interactive Pi UI.",
             "error"
           );
           return;
@@ -151,10 +152,10 @@ export default function reviewModeExtension(pi: PiExtensionHost) {
           : [];
 
         await ctx.ui?.notify?.(
-          "Opening browser review for a frozen Git snapshot.",
+          "Opening native review window for a frozen Git snapshot.",
           "info"
         );
-        const result = await openBrowserReviewSurface(snapshot, {
+        const result = await openGlimpseReviewSurface(snapshot, {
           seedDrafts,
           onSubmitPrompt: async (prompt) => {
             await ctx.ui?.setEditorText?.(prompt);
@@ -206,7 +207,7 @@ async function collectAgentPreReview(
   try {
     if (!pi.sendMessage || !ctx.waitForIdle) {
       await ctx.ui?.notify?.(
-        "Agent pre-review is unavailable in this Pi runtime. Opening the browser with no seeded comments.",
+        "Agent pre-review is unavailable in this Pi runtime. Opening the review window with no seeded comments.",
         "warning"
       );
       return [];
@@ -230,7 +231,7 @@ async function collectAgentPreReview(
 
     if (comments.length === 0) {
       await ctx.ui?.notify?.(
-        "Agent pre-review returned no comments. Opening the browser review.",
+        "Agent pre-review returned no comments. Opening the review window.",
         "warning"
       );
     } else {
@@ -243,7 +244,7 @@ async function collectAgentPreReview(
     return agentCommentsToSeedDrafts(comments);
   } catch (error) {
     await ctx.ui?.notify?.(
-      `Agent pre-review failed: ${error instanceof Error ? error.message : "Unknown error"}. Opening the browser with no seeded comments.`,
+      `Agent pre-review failed: ${error instanceof Error ? error.message : "Unknown error"}. Opening the review window with no seeded comments.`,
       "warning"
     );
     return [];

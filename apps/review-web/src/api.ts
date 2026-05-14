@@ -4,122 +4,12 @@ import type {
   DiffRow,
   ReviewFileSnapshot,
   ReviewSnapshot,
-  SaveCommentRequest,
-  SavedComment,
-  SubmitResponse
+  SavedComment
 } from "./types";
 
-export class ReviewApiError extends Error {
-  readonly status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = "ReviewApiError";
-    this.status = status;
-  }
-}
-
-export function readTokenFromLocation(
-  location: Location = window.location
-): string {
-  return new URLSearchParams(location.search).get("token") ?? "";
-}
-
-export function readApiBaseUrlFromLocation(
-  location: Location = window.location
-): string {
-  return new URLSearchParams(location.search).get("apiBaseUrl") ?? "";
-}
-
-export function createReviewApi(
-  token: string,
-  baseUrl = readApiBaseUrlFromLocation()
-) {
-  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const url = new URL(`/api${path}`, window.location.origin);
-    if (baseUrl) {
-      const explicit = new URL(`/api${path}`, baseUrl);
-      url.protocol = explicit.protocol;
-      url.host = explicit.host;
-    }
-    url.searchParams.set("token", token);
-
-    const response = await fetch(url.toString(), {
-      ...init,
-      headers: {
-        "Content-Type": "application/json",
-        ...init.headers
-      }
-    });
-
-    if (!response.ok) {
-      let message = `Request failed with status ${response.status}`;
-      try {
-        const payload = (await response.json()) as { error?: string };
-        message = payload.error ?? message;
-      } catch {
-        message = response.statusText || message;
-      }
-      throw new ReviewApiError(message, response.status);
-    }
-
-    if (response.status === 204) {
-      return undefined as T;
-    }
-
-    return (await response.json()) as T;
-  }
-
-  return {
-    getSnapshot: async () =>
-      normalizeSnapshot(await request<unknown>("/snapshot")),
-    getDrafts: async () => normalizeDrafts(await request<unknown>("/drafts")),
-    saveDraft: (draft: SaveCommentRequest) =>
-      request<unknown>("/drafts", {
-        method: "POST",
-        body: JSON.stringify(draft)
-      }).then(normalizeDraft),
-    deleteDraft: (anchorId: string) =>
-      request<void>(`/drafts/${encodeURIComponent(anchorId)}`, {
-        method: "DELETE"
-      }),
-    heartbeat: () =>
-      request<void>("/heartbeat", {
-        method: "POST",
-        body: "{}"
-      }),
-    close: () =>
-      request<void>("/close", {
-        method: "POST",
-        body: "{}"
-      }),
-    submit: () =>
-      request<SubmitResponse>("/submit", {
-        method: "POST",
-        body: "{}"
-      })
-  };
-}
-
-export type ReviewApi = ReturnType<typeof createReviewApi>;
-
-export function closeReviewWithBeacon(token: string): void {
-  const apiBaseUrl = readApiBaseUrlFromLocation();
-  const url = new URL("/api/close", apiBaseUrl || window.location.origin);
-  url.searchParams.set("token", token);
-  const payload = new Blob(["{}"], { type: "application/json" });
-  if (navigator.sendBeacon?.(url.toString(), payload)) {
-    return;
-  }
-  void fetch(url.toString(), {
-    method: "POST",
-    body: "{}",
-    headers: { "Content-Type": "application/json" },
-    keepalive: true
-  }).catch(() => undefined);
-}
-
-function normalizeSnapshot(payload: unknown): ReviewSnapshot {
+export function normalizeReviewSnapshotForTransport(
+  payload: unknown
+): ReviewSnapshot {
   const raw = unwrap<Record<string, unknown>>(payload, "snapshot");
   const stats = raw.stats as ReviewSnapshot["stats"];
   return {
@@ -141,6 +31,42 @@ function normalizeSnapshot(payload: unknown): ReviewSnapshot {
     files: ((raw.files as unknown[]) ?? []).map(normalizeFile)
   };
 }
+
+export function normalizeSavedCommentsForTransport(
+  payload: unknown
+): SavedComment[] {
+  return unwrap<unknown[]>(payload, "drafts").map(
+    normalizeSavedCommentForTransport
+  );
+}
+
+export function normalizeSavedCommentForTransport(
+  payload: unknown
+): SavedComment {
+  const raw = unwrap<Record<string, unknown>>(payload, "draft");
+  const anchor = raw.anchor as DiffAnchor | undefined;
+  const anchorId =
+    typeof raw.anchorId === "string" ? raw.anchorId : String(anchor?.id);
+  const backendAnchorPath =
+    typeof (anchor as { path?: unknown } | undefined)?.path === "string"
+      ? (anchor as unknown as { path: string }).path
+      : undefined;
+  const filePath =
+    typeof raw.filePath === "string"
+      ? raw.filePath
+      : String(anchor?.filePath ?? backendAnchorPath);
+  return {
+    id: typeof raw.id === "string" ? raw.id : anchorId,
+    anchorId,
+    filePath,
+    body: String(raw.body),
+    createdAt: typeof raw.createdAt === "string" ? raw.createdAt : undefined,
+    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
+    source: raw.source === "agent" ? "agent" : "user"
+  };
+}
+
+export const normalizeDraftForTest = normalizeSavedCommentForTransport;
 
 function normalizeFile(rawValue: unknown): ReviewFileSnapshot {
   const raw = rawValue as Record<string, unknown>;
@@ -177,36 +103,6 @@ function normalizeRow(rawValue: unknown, path: string): DiffRow {
       typeof raw.newLineNumber === "number" ? raw.newLineNumber : undefined,
     text: String(raw.text),
     anchor: normalizeAnchor(raw.anchor, path)
-  };
-}
-
-function normalizeDrafts(payload: unknown): SavedComment[] {
-  return unwrap<unknown[]>(payload, "drafts").map(normalizeDraft);
-}
-
-export const normalizeDraftForTest = normalizeDraft;
-
-function normalizeDraft(payload: unknown): SavedComment {
-  const raw = unwrap<Record<string, unknown>>(payload, "draft");
-  const anchor = raw.anchor as DiffAnchor | undefined;
-  const anchorId =
-    typeof raw.anchorId === "string" ? raw.anchorId : String(anchor?.id);
-  const backendAnchorPath =
-    typeof (anchor as { path?: unknown } | undefined)?.path === "string"
-      ? (anchor as unknown as { path: string }).path
-      : undefined;
-  const filePath =
-    typeof raw.filePath === "string"
-      ? raw.filePath
-      : String(anchor?.filePath ?? backendAnchorPath);
-  return {
-    id: typeof raw.id === "string" ? raw.id : anchorId,
-    anchorId,
-    filePath,
-    body: String(raw.body),
-    createdAt: typeof raw.createdAt === "string" ? raw.createdAt : undefined,
-    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
-    source: raw.source === "agent" ? "agent" : "user"
   };
 }
 

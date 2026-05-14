@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
-import type { ReviewApi } from "./api";
+import type { ReviewTransport } from "./review-transport";
 import type { ReviewSnapshot } from "./types";
 
 const scrollIntoView = vi.fn();
@@ -19,9 +19,14 @@ afterEach(() => {
 describe("App file navigation", () => {
   it("scrolls the selected file into view when clicked in the file tree", async () => {
     const user = userEvent.setup();
-    const api = createApi(snapshotWithFiles(["src/alpha.ts", "src/beta.ts"]));
+    const transport = fakeTransport({
+      load: async () => ({
+        snapshot: snapshotWithFiles(["src/alpha.ts", "src/beta.ts"]),
+        drafts: []
+      })
+    });
 
-    render(<App api={api} token="token" />);
+    render(<App transport={transport} />);
 
     await screen.findByRole("heading", { name: "src/alpha.ts" });
     scrollIntoView.mockClear();
@@ -33,15 +38,26 @@ describe("App file navigation", () => {
   });
 });
 
-function createApi(snapshot: ReviewSnapshot): ReviewApi {
+function fakeTransport(
+  overrides: Partial<ReviewTransport> = {}
+): ReviewTransport {
   return {
-    getSnapshot: vi.fn().mockResolvedValue(snapshot),
-    getDrafts: vi.fn().mockResolvedValue([]),
-    saveDraft: vi.fn(),
-    deleteDraft: vi.fn(),
-    heartbeat: vi.fn().mockResolvedValue(undefined),
-    close: vi.fn().mockResolvedValue(undefined),
-    submit: vi.fn().mockResolvedValue({ prompt: "prompt" })
+    load: async () => ({
+      snapshot: snapshotWithFiles(["src/alpha.ts"]),
+      drafts: []
+    }),
+    saveDraft: async (draft) => ({
+      id: draft.anchor.id,
+      anchorId: draft.anchor.id,
+      filePath: draft.anchor.filePath,
+      body: draft.body,
+      updatedAt: "2026-05-14T00:00:00.000Z",
+      source: "user"
+    }),
+    deleteDraft: async () => undefined,
+    close: async () => undefined,
+    submit: async () => ({ prompt: "prompt" }),
+    ...overrides
   };
 }
 

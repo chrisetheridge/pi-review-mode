@@ -4,6 +4,7 @@ packages:
 allowBuilds:
   '@google/genai': true
   esbuild: true
+  glimpseui: true
   koffi: true
   msw: false
   protobufjs: true

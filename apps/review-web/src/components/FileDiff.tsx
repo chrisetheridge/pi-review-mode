@@ -7,7 +7,7 @@ import {
   MessageSquareMore,
   Square
 } from "lucide-react";
-import { useMemo } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,7 @@ interface FileDiffProps {
   onSaveComment: (anchor: DiffAnchor, body: string) => Promise<void> | void;
   onDeleteComment: (anchorId: string) => Promise<void> | void;
   theme?: "light" | "dark";
+  virtualizeBody?: boolean;
 }
 
 type ExtendItem =
@@ -96,11 +97,20 @@ function fallbackPatch(file: ReviewFileSnapshot) {
   return `${lines.join("\n")}\n`;
 }
 
+function estimateFileDiffHeight(file: ReviewFileSnapshot) {
+  if (file.binary) return 112;
+  const rowCount = file.hunks.reduce(
+    (total, hunk) => total + hunk.rows.length,
+    0
+  );
+  return 72 + file.hunks.length * 24 + rowCount * 24;
+}
+
 export function fileDiffDomId(path: string) {
   return `review-file-${encodeURIComponent(path)}`;
 }
 
-export function FileDiff({
+export const FileDiff = memo(function FileDiff({
   file,
   collapsed,
   comments,
@@ -112,24 +122,80 @@ export function FileDiff({
   onCancelEditor,
   onSaveComment,
   onDeleteComment,
-  theme = "dark"
+  theme = "dark",
+  virtualizeBody = false
 }: FileDiffProps) {
-  const commentsByAnchor = comments.reduce<Record<string, SavedComment[]>>(
-    (acc, comment) => {
-      acc[comment.anchorId] = [...(acc[comment.anchorId] ?? []), comment];
-      return acc;
-    },
-    {}
+  const sectionRef = useRef<HTMLElement>(null);
+  const [nearViewport, setNearViewport] = useState(!virtualizeBody);
+  const [reservedHeight, setReservedHeight] = useState(() =>
+    estimateFileDiffHeight(file)
   );
-  const editorsByAnchor = activeEditors.reduce<Record<string, ActiveEditor>>(
-    (acc, editor) => {
-      acc[editor.anchor.id] = editor;
-      return acc;
-    },
-    {}
+  const shouldRenderBody =
+    !collapsed &&
+    (!virtualizeBody ||
+      nearViewport ||
+      comments.length > 0 ||
+      activeEditors.length > 0);
+
+  useEffect(() => {
+    if (!virtualizeBody) {
+      setNearViewport(true);
+      return;
+    }
+    const element = sectionRef.current;
+    if (!element || typeof IntersectionObserver === "undefined") {
+      setNearViewport(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => setNearViewport(entry.isIntersecting),
+      { root: null, rootMargin: "900px 0px" }
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [virtualizeBody]);
+
+  useEffect(() => {
+    if (!shouldRenderBody) return;
+    const element = sectionRef.current;
+    if (!element) return;
+    const updateHeight = () => {
+      const height = element.offsetHeight;
+      if (height > 0) setReservedHeight(height);
+    };
+    updateHeight();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [shouldRenderBody]);
+
+  const commentsByAnchor = useMemo(
+    () =>
+      comments.reduce<Record<string, SavedComment[]>>((acc, comment) => {
+        acc[comment.anchorId] = [...(acc[comment.anchorId] ?? []), comment];
+        return acc;
+      }, {}),
+    [comments]
+  );
+  const editorsByAnchor = useMemo(
+    () =>
+      activeEditors.reduce<Record<string, ActiveEditor>>((acc, editor) => {
+        acc[editor.anchor.id] = editor;
+        return acc;
+      }, {}),
+    [activeEditors]
   );
 
   const anchorIndex = useMemo(() => buildAnchorIndex(file), [file]);
+  const diffData = useMemo(
+    () => ({
+      oldFile: { fileName: file.oldPath ?? file.path, content: "" },
+      newFile: { fileName: file.path, content: "" },
+      hunks: [file.patch ?? fallbackPatch(file)]
+    }),
+    [file]
+  );
   const extendData = useMemo<ExtendData>(() => {
     const data: ExtendData = { oldFile: {}, newFile: {} };
     for (const comment of comments) {
@@ -146,11 +212,49 @@ export function FileDiff({
     return data;
   }, [file, comments, activeEditors]);
 
-  function findLineAnchor(lineNumber: number, side: SplitSide) {
-    return side === SplitSide.old
-      ? anchorIndex.old.get(lineNumber)
-      : anchorIndex.new.get(lineNumber);
-  }
+  const findLineAnchor = useCallback(
+    (lineNumber: number, side: SplitSide) =>
+      side === SplitSide.old
+        ? anchorIndex.old.get(lineNumber)
+        : anchorIndex.new.get(lineNumber),
+    [anchorIndex]
+  );
+
+  const handleAddWidgetClick = useCallback(
+    (lineNumber: number, side: SplitSide) => {
+      const anchor = findLineAnchor(lineNumber, side);
+      if (anchor) onStartComment(anchor);
+    },
+    [findLineAnchor, onStartComment]
+  );
+
+  const renderExtendLine = useCallback(
+    ({ data }: { data?: ExtendItem[] }) => {
+      if (!data?.length) return null;
+      return (
+        <div className="border-border border-y bg-card px-4 py-2">
+          {data.map((item) =>
+            item.type === "comment" ? (
+              <SavedCommentCard
+                key={item.comment.id}
+                comment={item.comment}
+                anchor={item.anchor}
+                onDelete={onDeleteComment}
+                onSave={onSaveComment}
+              />
+            ) : (
+              <CommentEditor
+                key={`editor-${item.anchor.id}`}
+                onCancel={() => onCancelEditor(item.anchor.id)}
+                onSave={(body) => onSaveComment(item.anchor, body)}
+              />
+            )
+          )}
+        </div>
+      );
+    },
+    [onCancelEditor, onDeleteComment, onSaveComment]
+  );
 
   function renderCommentSurface(anchor: DiffAnchor) {
     const saved = commentsByAnchor[anchor.id] ?? [];
@@ -178,8 +282,14 @@ export function FileDiff({
 
   return (
     <section
+      ref={sectionRef}
       id={fileDiffDomId(file.path)}
       className="mb-4 overflow-hidden border border-border bg-card text-card-foreground shadow-xs rounded-md"
+      style={
+        virtualizeBody && !collapsed && !shouldRenderBody
+          ? { minHeight: reservedHeight }
+          : undefined
+      }
       aria-label={`Diff for ${file.path}`}
     >
       <header className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 border-border border-b bg-muted/50 px-3.5 py-2">
@@ -254,7 +364,7 @@ export function FileDiff({
           </Button>
         </div>
       </header>
-      {collapsed ? null : (
+      {shouldRenderBody ? (
         <div>
           {renderCommentSurface(file.fileAnchor)}
           {file.binary ? (
@@ -267,53 +377,23 @@ export function FileDiff({
               data-testid={`diff-view-${file.path}`}
             >
               <DiffView<ExtendItem[]>
-                data={{
-                  oldFile: { fileName: file.oldPath ?? file.path, content: "" },
-                  newFile: { fileName: file.path, content: "" },
-                  hunks: [file.patch ?? fallbackPatch(file)]
-                }}
+                data={diffData}
                 diffViewMode={DiffModeEnum.Unified}
                 diffViewTheme={theme}
                 diffViewHighlight
                 diffViewWrap={false}
                 diffViewAddWidget
                 extendData={extendData}
-                onAddWidgetClick={(lineNumber, side) => {
-                  const anchor = findLineAnchor(lineNumber, side);
-                  if (anchor) onStartComment(anchor);
-                }}
-                renderExtendLine={({ data }) => {
-                  if (!data?.length) return null;
-                  return (
-                    <div className="border-border border-y bg-card px-4 py-2">
-                      {data.map((item) =>
-                        item.type === "comment" ? (
-                          <SavedCommentCard
-                            key={item.comment.id}
-                            comment={item.comment}
-                            anchor={item.anchor}
-                            onDelete={onDeleteComment}
-                            onSave={onSaveComment}
-                          />
-                        ) : (
-                          <CommentEditor
-                            key={`editor-${item.anchor.id}`}
-                            onCancel={() => onCancelEditor(item.anchor.id)}
-                            onSave={(body) => onSaveComment(item.anchor, body)}
-                          />
-                        )
-                      )}
-                    </div>
-                  );
-                }}
+                onAddWidgetClick={handleAddWidgetClick}
+                renderExtendLine={renderExtendLine}
               />
             </div>
           )}
         </div>
-      )}
+      ) : null}
     </section>
   );
-}
+});
 
 function findAnchorById(file: ReviewFileSnapshot, anchorId: string) {
   if (file.fileAnchor.id === anchorId) return file.fileAnchor;

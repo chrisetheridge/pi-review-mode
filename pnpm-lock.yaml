@@ -11,6 +11,9 @@ importers:
       gitdiff-parser:
         specifier: ^0.3.1
         version: 0.3.1
+      glimpseui:
+        specifier: ^0.8.0
+        version: 0.8.0
       typebox:
         specifier: ^1.1.38
         version: 1.1.38
@@ -2815,6 +2818,12 @@ packages:
 
   gitdiff-parser@0.3.1:
     resolution: {integrity: sha512-YQJnY8aew65id8okGxKCksH3efDCJ9HzV7M9rsvd65habf39Pkh4cgYJ27AaoDMqo1X98pgNJhNMrm/kpV7UVQ==}
+
+  glimpseui@0.8.0:
+    resolution: {integrity: sha512-trpEKiULW9sGjsLqtSH/+hMPcohvq3tkN6yM55t0WIgTsHt53+HXVTMf5ipy/w+kXbkbC/XP7DSRvzZC+E8xig==}
+    engines: {node: '>=18'}
+    os: [darwin, linux, win32]
+    hasBin: true
 
   glob-parent@5.1.2:
     resolution: {integrity: sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow==}
@@ -7298,6 +7307,8 @@ snapshots:
       - supports-color
 
   gitdiff-parser@0.3.1: {}
+
+  glimpseui@0.8.0: {}
 
   glob-parent@5.1.2:
     dependencies:

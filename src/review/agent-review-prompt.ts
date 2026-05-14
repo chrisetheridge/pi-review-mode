@@ -5,7 +5,7 @@ export function buildAgentReviewPrompt(
   reviewId: string
 ): string {
   const lines: string[] = [
-    "Please review this frozen Git diff snapshot before I open the browser review UI.",
+    "Please review this frozen Git diff snapshot before I open the native review window.",
     "",
     "This is a visible pre-review request from the Pi review-mode extension.",
     "",
