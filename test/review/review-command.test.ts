@@ -16,6 +16,21 @@ describe("parseReviewCommand", () => {
     });
   });
 
+  it("parses /review --agent", () => {
+    expect(parseReviewCommand("/review --agent")).toEqual({
+      kind: "review",
+      agent: true
+    });
+  });
+
+  it("parses /review --agent --base <branch>", () => {
+    expect(parseReviewCommand("/review --agent --base feature/main")).toEqual({
+      kind: "review",
+      agent: true,
+      base: "feature/main"
+    });
+  });
+
   it("parses /review --fixture <name>", () => {
     expect(parseReviewCommand("/review --fixture basic")).toEqual({
       kind: "review",
@@ -27,6 +42,12 @@ describe("parseReviewCommand", () => {
     expect(() =>
       parseReviewCommand("/review --fixture basic --base main")
     ).toThrow("--fixture cannot be combined with --base");
+  });
+
+  it("rejects combining --fixture with --agent", () => {
+    expect(() => parseReviewCommand("/review --fixture basic --agent")).toThrow(
+      "--fixture cannot be combined with --agent"
+    );
   });
 
   it("rejects missing fixture names", () => {

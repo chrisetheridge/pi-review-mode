@@ -1,8 +1,14 @@
+import { Type } from "typebox";
+import {
+  AgentReviewCoordinator,
+  agentCommentsToSeedDrafts
+} from "./review/agent-review.js";
+import { buildAgentReviewPrompt } from "./review/agent-review-prompt.js";
 import { openBrowserReviewSurface } from "./review/browser-review-surface.js";
 import { FixtureReviewSource } from "./review/fixture-review-source.js";
 import { GitReviewSource } from "./review/git-review-source.js";
 import { parseReviewCommand } from "./review/review-command.js";
-import type { ReviewScope } from "./review/types.js";
+import type { ReviewScope, ReviewSnapshot } from "./review/types.js";
 
 type PiCommandContext = {
   cwd?: string;
@@ -17,7 +23,9 @@ type PiCommandContext = {
       options: Array<{ label: string; value: T; description?: string }>
     ) => Promise<T | undefined>;
     setEditorText?: (text: string) => Promise<void> | void;
+    setWorkingMessage?: (message?: string) => void;
   };
+  waitForIdle?: () => Promise<void>;
 };
 
 type PiCommandHandlerArgs = string | { input?: string; args?: string[] };
@@ -33,6 +41,35 @@ type PiExtensionHost = {
       ) => Promise<void>;
     }
   ) => void;
+  sendMessage?: (
+    message: {
+      customType: string;
+      content: string;
+      display: boolean;
+      details?: unknown;
+    },
+    options?: {
+      triggerTurn?: boolean;
+      deliverAs?: "steer" | "followUp" | "nextTurn";
+    }
+  ) => void;
+  registerTool?: (tool: {
+    name: string;
+    label: string;
+    description: string;
+    promptSnippet?: string;
+    parameters: unknown;
+    execute: (
+      toolCallId: string,
+      params: {
+        reviewId: string;
+        comments: Array<{ anchorId: string; body: string }>;
+      }
+    ) => Promise<{
+      content: Array<{ type: "text"; text: string }>;
+      details: unknown;
+    }>;
+  }) => void;
 };
 
 function commandInput(args: PiCommandHandlerArgs): string {
@@ -50,6 +87,38 @@ function commandInput(args: PiCommandHandlerArgs): string {
 }
 
 export default function reviewModeExtension(pi: PiExtensionHost) {
+  const agentReviews = new AgentReviewCoordinator();
+
+  pi.registerTool?.({
+    name: "submit_review_mode_comments",
+    label: "Submit review-mode comments",
+    description:
+      "Submit structured comments for a pending /review --agent pre-review. Use only when review mode asks for it.",
+    promptSnippet:
+      "submit_review_mode_comments: submit structured comments for a pending /review --agent pre-review.",
+    parameters: Type.Object({
+      reviewId: Type.String(),
+      comments: Type.Array(
+        Type.Object({
+          anchorId: Type.String(),
+          body: Type.String()
+        })
+      )
+    }),
+    async execute(_toolCallId, params) {
+      const result = agentReviews.submit(params);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Accepted ${result.accepted} review comment${result.accepted === 1 ? "" : "s"}.`
+          }
+        ],
+        details: result
+      };
+    }
+  });
+
   pi.registerCommand("review", {
     description: "Open a browser UI for commenting on a frozen Git diff.",
     async handler(args, ctx) {
@@ -77,11 +146,16 @@ export default function reviewModeExtension(pi: PiExtensionHost) {
           );
           return;
         }
+        const seedDrafts = options.agent
+          ? await collectAgentPreReview(snapshot, agentReviews, pi, ctx)
+          : [];
+
         await ctx.ui?.notify?.(
           "Opening browser review for a frozen Git snapshot.",
           "info"
         );
         const result = await openBrowserReviewSurface(snapshot, {
+          seedDrafts,
           onSubmitPrompt: async (prompt) => {
             await ctx.ui?.setEditorText?.(prompt);
             await ctx.ui?.notify?.(
@@ -117,6 +191,74 @@ function assertFixtureModeEnabled(fixture: string): string {
     );
   }
   return fixture;
+}
+
+async function collectAgentPreReview(
+  snapshot: ReviewSnapshot,
+  agentReviews: AgentReviewCoordinator,
+  pi: PiExtensionHost,
+  ctx: PiCommandContext
+) {
+  const pending = agentReviews.start(snapshot);
+  const prompt = buildAgentReviewPrompt(snapshot, pending.reviewId);
+  ctx.ui?.setWorkingMessage?.("Running review pre-check...");
+
+  try {
+    if (!pi.sendMessage || !ctx.waitForIdle) {
+      await ctx.ui?.notify?.(
+        "Agent pre-review is unavailable in this Pi runtime. Opening the browser with no seeded comments.",
+        "warning"
+      );
+      return [];
+    }
+
+    pi.sendMessage(
+      {
+        customType: "review-mode-agent-prereview",
+        content: prompt,
+        display: false,
+        details: { reviewId: pending.reviewId }
+      },
+      { triggerTurn: true, deliverAs: "followUp" }
+    );
+
+    const comments = await Promise.race([
+      pending.submitted,
+      ctx.waitForIdle().then(() => pending.comments()),
+      delayUntil(pending.expiresAt).then(() => pending.comments())
+    ]);
+
+    if (comments.length === 0) {
+      await ctx.ui?.notify?.(
+        "Agent pre-review returned no comments. Opening the browser review.",
+        "warning"
+      );
+    } else {
+      await ctx.ui?.notify?.(
+        `Agent pre-review seeded ${comments.length} comment${comments.length === 1 ? "" : "s"}.`,
+        "info"
+      );
+    }
+
+    return agentCommentsToSeedDrafts(comments);
+  } catch (error) {
+    await ctx.ui?.notify?.(
+      `Agent pre-review failed: ${error instanceof Error ? error.message : "Unknown error"}. Opening the browser with no seeded comments.`,
+      "warning"
+    );
+    return [];
+  } finally {
+    ctx.ui?.setWorkingMessage?.();
+    agentReviews.cancel();
+  }
+}
+
+function delayUntil(timestamp: number): Promise<void> {
+  const delayMs = Math.max(0, timestamp - Date.now());
+  return new Promise((resolve) => {
+    const timeout = setTimeout(resolve, delayMs);
+    timeout.unref?.();
+  });
 }
 
 async function createGitSnapshot(

@@ -184,6 +184,8 @@ function normalizeDrafts(payload: unknown): SavedComment[] {
   return unwrap<unknown[]>(payload, "drafts").map(normalizeDraft);
 }
 
+export const normalizeDraftForTest = normalizeDraft;
+
 function normalizeDraft(payload: unknown): SavedComment {
   const raw = unwrap<Record<string, unknown>>(payload, "draft");
   const anchor = raw.anchor as DiffAnchor | undefined;
@@ -203,7 +205,8 @@ function normalizeDraft(payload: unknown): SavedComment {
     filePath,
     body: String(raw.body),
     createdAt: typeof raw.createdAt === "string" ? raw.createdAt : undefined,
-    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined
+    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
+    source: raw.source === "agent" ? "agent" : "user"
   };
 }
 
