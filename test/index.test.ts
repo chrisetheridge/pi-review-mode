@@ -1,3 +1,5 @@
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import reviewModeExtension from "../src/index.js";
 import type { ReviewSnapshot } from "../src/review/index.js";
@@ -6,6 +8,14 @@ import { openGlimpseReviewSurface } from "../src/review/surface/glimpse.js";
 
 vi.mock("../src/review/surface/glimpse.js", () => ({
   openGlimpseReviewSurface: vi.fn()
+}));
+
+const agentDirMock = vi.hoisted(() => ({
+  path: `${process.env.TMPDIR ?? "/tmp"}/pi-review-mode-test-${process.pid}`
+}));
+
+vi.mock("@earendil-works/pi-coding-agent", () => ({
+  getAgentDir: () => agentDirMock.path
 }));
 
 const gitSourceMock = vi.hoisted(() => ({
@@ -46,10 +56,12 @@ vi.mock("../src/review/source/git.js", () => ({
 describe("review command fixture routing", () => {
   beforeEach(() => {
     delete process.env.PI_REVIEW_MODE_FIXTURES;
+    rmSync(agentDirMock.path, { force: true, recursive: true });
   });
 
   afterEach(() => {
     delete process.env.PI_REVIEW_MODE_FIXTURES;
+    rmSync(agentDirMock.path, { force: true, recursive: true });
     gitSourceMock.availability = undefined;
     vi.mocked(openGlimpseReviewSurface).mockReset();
   });
@@ -123,7 +135,7 @@ describe("review command fixture routing", () => {
     expect(openGlimpseReviewSurface).toHaveBeenCalled();
   });
 
-  it("sends a hidden agent pre-review message and seeds submitted comments", async () => {
+  it("runs agent pre-review by default and seeds submitted comments", async () => {
     let handler:
       | Parameters<
           Parameters<typeof reviewModeExtension>[0]["registerCommand"]
@@ -158,7 +170,7 @@ describe("review command fixture routing", () => {
       sendMessage
     });
 
-    await handler?.("--agent --base main", {
+    await handler?.("--base main", {
       cwd: process.cwd(),
       hasUI: true,
       waitForIdle,
@@ -210,13 +222,48 @@ describe("review command fixture routing", () => {
       sendMessage
     });
 
-    await handler?.("--agent --base main", {
+    await handler?.("--base main", {
       cwd: process.cwd(),
       hasUI: true,
       waitForIdle,
       ui: { notify: vi.fn(), setWorkingMessage: vi.fn() }
     });
 
+    expect(openGlimpseReviewSurface).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ seedDrafts: [] })
+    );
+  });
+
+  it("skips agent pre-review when global config sets agent-review false", async () => {
+    let handler:
+      | Parameters<
+          Parameters<typeof reviewModeExtension>[0]["registerCommand"]
+        >[1]["handler"]
+      | undefined;
+    const sendMessage = vi.fn();
+    mkdirSync(join(agentDirMock.path, "extensions"), { recursive: true });
+    writeFileSync(
+      join(agentDirMock.path, "extensions", "pi-review-mode.json"),
+      JSON.stringify({ "agent-review": false })
+    );
+    vi.mocked(openGlimpseReviewSurface).mockResolvedValue({ closed: true });
+
+    reviewModeExtension({
+      registerCommand(_name, command) {
+        handler = command.handler;
+      },
+      sendMessage
+    });
+
+    await handler?.("--base main", {
+      cwd: process.cwd(),
+      hasUI: true,
+      waitForIdle: vi.fn().mockResolvedValue(undefined),
+      ui: { notify: vi.fn(), setWorkingMessage: vi.fn() }
+    });
+
+    expect(sendMessage).not.toHaveBeenCalled();
     expect(openGlimpseReviewSurface).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({ seedDrafts: [] })

@@ -46,6 +46,18 @@ Then run `/review --fixture basic` or `/review --fixture mixed`. Fixture mode is
 
 The package manifest points Pi at the extension entry, and the extension loads the bundled review UI from `dist/review-web`.
 
+## Configuration
+
+Agent pre-review runs by default before the review window opens. Disable it with a global extension config file at `~/.pi/agent/extensions/pi-review-mode.json`:
+
+```json
+{
+  "agent-review": false
+}
+```
+
+Set `"agent-review": true` or remove the file to use the default agent pre-review flow.
+
 ## Native Window Requirements
 
 The review window is hosted by `glimpseui`.

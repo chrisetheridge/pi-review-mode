@@ -7,6 +7,7 @@ import {
   type AgentReviewCoordinator,
   agentCommentsToSeedDrafts
 } from "../agent/coordinator.js";
+import { loadReviewModeConfig } from "../config.js";
 import { buildAgentReviewPrompt } from "../prompt/agent.js";
 import type { ReviewSnapshot } from "../snapshot/types.js";
 import { FixtureReviewSource } from "../source/fixture.js";
@@ -52,7 +53,10 @@ export async function runReviewCommand({
       );
       return;
     }
-    const seedDrafts = options.agent
+    const config = loadReviewModeConfig();
+    const shouldRunAgentReview =
+      options.agent || (!options.fixture && config.agentReview);
+    const seedDrafts = shouldRunAgentReview
       ? await collectAgentPreReview(snapshot, agentReviews, pi, ctx)
       : [];
 
