@@ -203,7 +203,10 @@ export class GitReviewSource {
       if (candidate === currentBranch) {
         continue;
       }
-      if (this.commitExists(candidate)) {
+      if (
+        this.commitExists(candidate) &&
+        this.branchHasReviewableChanges(candidate)
+      ) {
         return { available: true, base: candidate };
       }
     }
@@ -219,6 +222,12 @@ export class GitReviewSource {
     if (!this.commitExists(ref)) {
       throw new GitReviewSourceError(message);
     }
+  }
+
+  private branchHasReviewableChanges(base: string): boolean {
+    const mergeBase = this.tryGit(["merge-base", base, "HEAD"]);
+    if (!mergeBase) return false;
+    return Boolean(this.tryGit(["diff", "--name-only", `${mergeBase}..HEAD`]));
   }
 
   private commitExists(ref: string): boolean {
