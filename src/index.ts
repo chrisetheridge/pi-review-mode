@@ -18,7 +18,16 @@ export default function reviewModeExtension(pi: PiExtensionHost) {
       comments: Type.Array(
         Type.Object({
           anchorId: Type.String(),
-          body: Type.String()
+          body: Type.String(),
+          tags: Type.Optional(
+            Type.Array(
+              Type.Union([
+                Type.Literal("spec"),
+                Type.Literal("standards"),
+                Type.Literal("bug")
+              ])
+            )
+          )
         })
       )
     }),

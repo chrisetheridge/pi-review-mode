@@ -35,7 +35,8 @@ diff --git a/two.txt b/two.txt
         anchor: one.anchor,
         body: "file one",
         updatedAt: "now",
-        source: "agent"
+        source: "agent",
+        tags: ["spec", "standards", "bug"]
       }
     ];
 
@@ -52,6 +53,8 @@ diff --git a/two.txt b/two.txt
     expect(prompt).toContain("+add one");
     expect(prompt).not.toContain("Agent");
     expect(prompt).not.toContain("source");
+    expect(prompt).not.toContain("standards");
+    expect(prompt).not.toContain("bug");
   });
 });
 

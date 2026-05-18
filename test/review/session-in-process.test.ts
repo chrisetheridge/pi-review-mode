@@ -42,7 +42,8 @@ describe("InProcessReviewSession", () => {
         {
           anchorId: reviewSnapshot.files[0].anchor.id,
           body: " seeded note ",
-          source: "agent"
+          source: "agent",
+          tags: ["spec", "bug"]
         },
         { anchorId: "missing", body: "ignored", source: "agent" }
       ]
@@ -53,7 +54,8 @@ describe("InProcessReviewSession", () => {
         anchor: reviewSnapshot.files[0].anchor,
         body: "seeded note",
         updatedAt: "1970-01-01T00:00:00.000Z",
-        source: "agent"
+        source: "agent",
+        tags: ["spec", "bug"]
       }
     ]);
   });
@@ -76,15 +78,25 @@ describe("InProcessReviewSession", () => {
     expect(session.listDrafts()).toEqual([draft]);
   });
 
-  it("preserves seeded draft source when edited", () => {
+  it("preserves seeded draft source and tags when edited", () => {
     const reviewSnapshot = snapshot();
     const anchor = reviewSnapshot.files[0].anchor;
     const session = new InProcessReviewSession(reviewSnapshot, {
       now: () => 2_000,
-      seedDrafts: [{ anchorId: anchor.id, body: "agent note", source: "agent" }]
+      seedDrafts: [
+        {
+          anchorId: anchor.id,
+          body: "agent note",
+          source: "agent",
+          tags: ["standards"]
+        }
+      ]
     });
 
-    expect(session.saveDraft(anchor.id, "updated").source).toBe("agent");
+    expect(session.saveDraft(anchor.id, "updated")).toMatchObject({
+      source: "agent",
+      tags: ["standards"]
+    });
   });
 
   it("rejects unknown anchors and blank bodies", () => {

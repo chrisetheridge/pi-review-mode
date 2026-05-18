@@ -3,7 +3,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FileDiff, fileDiffDomId } from "../review/components/FileDiff";
 import { FileTree } from "../review/components/FileTree";
-import type { DiffAnchor, SavedComment } from "../review/model";
+import type { AgentReviewTag, DiffAnchor, SavedComment } from "../review/model";
 import { useReviewSurfaceState } from "../review/state/useReviewState";
 import { createGlimpseReviewTransport } from "../review/transport/glimpse";
 import type { ReviewTransport } from "../review/transport/types";
@@ -16,6 +16,7 @@ interface AppProps {
 
 const EMPTY_COMMENTS: SavedComment[] = [];
 const EMPTY_EDITORS: { anchor: DiffAnchor }[] = [];
+const AGENT_REVIEW_TAGS: AgentReviewTag[] = ["spec", "standards", "bug"];
 
 export function App({ transport: providedTransport }: AppProps) {
   const transport = useMemo(
@@ -24,6 +25,9 @@ export function App({ transport: providedTransport }: AppProps) {
   );
   const [theme, setTheme] = useState<Theme>(readInitialTheme);
   const [viewedPaths, setViewedPaths] = useState<Set<string>>(() => new Set());
+  const [selectedTagFilters, setSelectedTagFilters] = useState<
+    Set<AgentReviewTag>
+  >(() => new Set());
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const isDark = theme === "dark";
 
@@ -77,9 +81,19 @@ export function App({ transport: providedTransport }: AppProps) {
     [collapsePath, expandPath]
   );
 
-  const commentsByFile = useMemo(
-    () => groupByFilePath(comments, (comment) => comment.filePath),
+  const hasTaggedComments = useMemo(
+    () => comments.some((comment) => (comment.tags?.length ?? 0) > 0),
     [comments]
+  );
+  const visibleComments = useMemo(() => {
+    if (!hasTaggedComments || selectedTagFilters.size === 0) return comments;
+    return comments.filter((comment) =>
+      comment.tags?.some((tag) => selectedTagFilters.has(tag))
+    );
+  }, [comments, hasTaggedComments, selectedTagFilters]);
+  const commentsByFile = useMemo(
+    () => groupByFilePath(visibleComments, (comment) => comment.filePath),
+    [visibleComments]
   );
   const activeEditorsByFile = useMemo(
     () => groupByFilePath(activeEditors, (editor) => editor.anchor.filePath),
@@ -96,6 +110,18 @@ export function App({ transport: providedTransport }: AppProps) {
     },
     [expandPath, setSelectedPath]
   );
+
+  const toggleTagFilter = useCallback((tag: AgentReviewTag) => {
+    setSelectedTagFilters((current) => {
+      const next = new Set(current);
+      if (next.has(tag)) {
+        next.delete(tag);
+      } else {
+        next.add(tag);
+      }
+      return next;
+    });
+  }, []);
 
   if (loading) {
     return <main className={themedFullscreen}>Loading review...</main>;
@@ -172,7 +198,38 @@ export function App({ transport: providedTransport }: AppProps) {
               -{snapshot.stats.deletions} · {comments.length} saved comments
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {hasTaggedComments ? (
+              <fieldset
+                aria-label="Tag filters"
+                className="flex flex-wrap items-center gap-1.5"
+              >
+                {AGENT_REVIEW_TAGS.map((tag) => (
+                  <Button
+                    key={tag}
+                    type="button"
+                    variant={
+                      selectedTagFilters.has(tag) ? "secondary" : "outline"
+                    }
+                    aria-pressed={selectedTagFilters.has(tag)}
+                    aria-label={`Filter ${tag}`}
+                    onClick={() => toggleTagFilter(tag)}
+                  >
+                    {tag}
+                  </Button>
+                ))}
+                {selectedTagFilters.size > 0 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    aria-label="Clear tag filters"
+                    onClick={() => setSelectedTagFilters(new Set())}
+                  >
+                    Clear
+                  </Button>
+                ) : null}
+              </fieldset>
+            ) : null}
             <Button
               type="button"
               variant="outline"

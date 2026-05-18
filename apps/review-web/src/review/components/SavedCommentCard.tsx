@@ -37,10 +37,19 @@ export function SavedCommentCard({
     <Card className="mt-2 max-w-[720px] gap-0 py-0" size="sm">
       <article className="contents">
         <CardContent className="p-2.5">
-          {comment.source === "agent" ? (
-            <Badge variant="secondary" className="mb-2 text-xs">
-              Agent
-            </Badge>
+          {comment.source === "agent" || comment.tags?.length ? (
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {comment.source === "agent" ? (
+                <Badge variant="secondary" className="text-xs">
+                  Agent
+                </Badge>
+              ) : null}
+              {comment.tags?.map((tag) => (
+                <Badge key={tag} variant="outline" className="text-xs">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
           ) : null}
           <p className="m-0 whitespace-pre-wrap text-card-foreground">
             {comment.body}
