@@ -1,4 +1,5 @@
 import type {
+  AgentReviewTag,
   DiffAnchor,
   DiffHunk,
   DiffRow,
@@ -6,6 +7,12 @@ import type {
   ReviewSnapshot,
   SavedComment
 } from "../model";
+
+const VALID_AGENT_REVIEW_TAGS = new Set<AgentReviewTag>([
+  "spec",
+  "standards",
+  "bug"
+]);
 
 export function normalizeReviewSnapshotForTransport(
   payload: unknown
@@ -62,7 +69,8 @@ export function normalizeSavedCommentForTransport(
     body: String(raw.body),
     createdAt: typeof raw.createdAt === "string" ? raw.createdAt : undefined,
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
-    source: raw.source === "agent" ? "agent" : "user"
+    source: raw.source === "agent" ? "agent" : "user",
+    tags: normalizeAgentReviewTags(raw.tags)
   };
 }
 
@@ -124,6 +132,18 @@ function normalizeAnchor(rawValue: unknown, fallbackPath: string): DiffAnchor {
     rowIndex: typeof raw.rowIndex === "number" ? raw.rowIndex : undefined,
     lineText: typeof raw.lineText === "string" ? raw.lineText : undefined
   };
+}
+
+function normalizeAgentReviewTags(tags: unknown): AgentReviewTag[] {
+  if (!Array.isArray(tags)) return [];
+  const normalized: AgentReviewTag[] = [];
+  for (const tag of tags) {
+    if (VALID_AGENT_REVIEW_TAGS.has(tag as AgentReviewTag)) {
+      const validTag = tag as AgentReviewTag;
+      if (!normalized.includes(validTag)) normalized.push(validTag);
+    }
+  }
+  return normalized;
 }
 
 function unwrap<T>(payload: unknown, key: string): T {

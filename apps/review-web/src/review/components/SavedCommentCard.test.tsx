@@ -23,6 +23,27 @@ describe("SavedCommentCard", () => {
     expect(screen.getByText("Agent")).toBeTruthy();
   });
 
+  it("shows tag badges for tagged comments", () => {
+    render(
+      <SavedCommentCard
+        comment={{
+          id: "comment-1",
+          anchorId: "file:file.txt",
+          filePath: "file.txt",
+          body: "tagged note",
+          source: "agent",
+          tags: ["spec", "bug"]
+        }}
+        anchor={anchor}
+        onDelete={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("spec")).toBeTruthy();
+    expect(screen.getByText("bug")).toBeTruthy();
+  });
+
   it("does not show an Agent badge for user comments", () => {
     render(
       <SavedCommentCard

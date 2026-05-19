@@ -109,6 +109,35 @@ describe("GitReviewSource", () => {
     expect(snapshot.files.map((file) => file.path)).toEqual(["feature.txt"]);
   });
 
+  it("uses main as the branch review base when the configured upstream has no diff", () => {
+    const repo = fixture();
+    repo.git(["config", "remote.origin.url", repo.root]);
+    repo.git([
+      "config",
+      "remote.origin.fetch",
+      "+refs/heads/*:refs/remotes/origin/*"
+    ]);
+    repo.git(["update-ref", "refs/remotes/origin/main", "main"]);
+    repo.git(["checkout", "-b", "feature"]);
+    repo.write("feature.txt", "feature\n");
+    repo.git(["add", "feature.txt"]);
+    repo.git(["commit", "-m", "feature"]);
+    repo.git(["update-ref", "refs/remotes/origin/feature", "HEAD"]);
+    repo.git(["branch", "--set-upstream-to=origin/feature", "feature"]);
+    const source = new GitReviewSource(repo.root);
+
+    const availability = source.getAvailability();
+
+    expect(availability.branch).toMatchObject({
+      available: true,
+      scope: { base: "origin/main" }
+    });
+    if (!availability.branch.available)
+      throw new Error("expected branch scope");
+    const snapshot = source.createSnapshot(availability.branch.scope);
+    expect(snapshot.files.map((file) => file.path)).toEqual(["feature.txt"]);
+  });
+
   it("creates branch snapshots from merge-base to HEAD", () => {
     const repo = fixture();
     repo.git(["checkout", "-b", "feature"]);

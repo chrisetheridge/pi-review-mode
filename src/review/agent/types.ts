@@ -1,15 +1,22 @@
-import type { ReviewDraftSource } from "../session/draft.types.js";
+import type {
+  AgentReviewTag,
+  ReviewDraftSource
+} from "../session/draft.types.js";
 import type { ReviewSnapshot } from "../snapshot/types.js";
+
+export type { AgentReviewTag } from "../session/draft.types.js";
 
 export interface SubmittedAgentReviewComment {
   readonly anchorId: string;
   readonly body: string;
+  readonly tags?: readonly AgentReviewTag[];
 }
 
 export interface SeedReviewDraft {
   readonly anchorId: string;
   readonly body: string;
   readonly source: ReviewDraftSource;
+  readonly tags?: readonly AgentReviewTag[];
 }
 
 export interface AgentReviewSubmitPayload {

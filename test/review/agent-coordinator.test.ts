@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { AgentReviewCoordinator } from "../../src/review/agent/coordinator.js";
+import {
+  AgentReviewCoordinator,
+  agentCommentsToSeedDrafts
+} from "../../src/review/agent/coordinator.js";
 import type { SubmittedAgentReviewComment } from "../../src/review/agent/types.js";
 import type { ReviewSnapshot } from "../../src/review/index.js";
 import { parseReviewDiff } from "../../src/review/snapshot/parse-diff.js";
@@ -14,15 +17,56 @@ describe("AgentReviewCoordinator", () => {
     const result = coordinator.submit({
       reviewId: pending.reviewId,
       comments: [
-        { anchorId, body: " first " },
-        { anchorId, body: " second " }
+        { anchorId, body: " first ", tags: ["spec"] },
+        { anchorId, body: " second ", tags: ["bug", "bug", "standards"] }
       ]
     });
 
     expect(result.accepted).toBe(1);
     expect(pending.comments()).toEqual<SubmittedAgentReviewComment[]>([
-      { anchorId, body: "second" }
+      { anchorId, body: "second", tags: ["bug", "standards"] }
     ]);
+  });
+
+  it("accepts comments without tags, with one tag, and with multiple tags", () => {
+    const snapshot = snapshotFromDiff();
+    const coordinator = new AgentReviewCoordinator();
+    const pending = coordinator.start(snapshot);
+    const fileAnchorId = snapshot.files[0].anchor.id;
+    const rowAnchorId = snapshot.files[0].hunks[0].rows[1].anchor.id;
+
+    const result = coordinator.submit({
+      reviewId: pending.reviewId,
+      comments: [
+        { anchorId: fileAnchorId, body: "no tags" },
+        { anchorId: rowAnchorId, body: "tagged", tags: ["spec", "bug"] }
+      ]
+    });
+
+    expect(result.accepted).toBe(2);
+    expect(pending.comments()).toEqual<SubmittedAgentReviewComment[]>([
+      { anchorId: fileAnchorId, body: "no tags" },
+      { anchorId: rowAnchorId, body: "tagged", tags: ["spec", "bug"] }
+    ]);
+  });
+
+  it("rejects unknown tags", () => {
+    const snapshot = snapshotFromDiff();
+    const coordinator = new AgentReviewCoordinator();
+    const pending = coordinator.start(snapshot);
+
+    expect(() =>
+      coordinator.submit({
+        reviewId: pending.reviewId,
+        comments: [
+          {
+            anchorId: snapshot.files[0].anchor.id,
+            body: "body",
+            tags: ["security"] as unknown as SubmittedAgentReviewComment["tags"]
+          }
+        ]
+      })
+    ).toThrow("Unknown agent review tag: security");
   });
 
   it("rejects unknown anchors, empty bodies, and mismatched review IDs", () => {
@@ -88,6 +132,23 @@ describe("AgentReviewCoordinator", () => {
     expect(() => coordinator.start(snapshotFromDiff())).toThrow(
       "An agent pre-review is already pending"
     );
+  });
+
+  it("converts agent comments to seed drafts with normalized tags", () => {
+    const anchorId = "file:file.txt";
+
+    expect(
+      agentCommentsToSeedDrafts([
+        { anchorId, body: "agent note", tags: ["standards", "bug"] }
+      ])
+    ).toEqual([
+      {
+        anchorId,
+        body: "agent note",
+        source: "agent",
+        tags: ["standards", "bug"]
+      }
+    ]);
   });
 });
 

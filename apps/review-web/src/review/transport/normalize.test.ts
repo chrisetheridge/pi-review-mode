@@ -57,11 +57,30 @@ describe("transport normalization", () => {
       body: "note",
       source: "agent"
     });
+    expect(
+      normalizeSavedCommentForTransport({
+        ...draft,
+        tags: ["spec", "bogus", "bug", "spec"]
+      })
+    ).toMatchObject({
+      tags: ["spec", "bug"]
+    });
     expect(normalizeSavedCommentsForTransport([draft])).toHaveLength(1);
   });
 });
 
 describe("normalizeDraftForTest", () => {
+  it("normalizes missing draft tags as empty tags", () => {
+    expect(
+      normalizeDraftForTest({
+        draft: {
+          anchor: { id: "file:file.txt", path: "file.txt" },
+          body: "comment"
+        }
+      }).tags
+    ).toEqual([]);
+  });
+
   it("normalizes draft source from bridge payloads", () => {
     expect(
       normalizeDraftForTest({

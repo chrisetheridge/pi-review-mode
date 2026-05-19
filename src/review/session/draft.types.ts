@@ -1,5 +1,7 @@
 import type { ReviewAnchor } from "../snapshot/types.js";
 
+export type AgentReviewTag = "spec" | "standards" | "bug";
+
 export type ReviewDraftSource = "user" | "agent";
 
 export interface ReviewDraft {
@@ -7,6 +9,7 @@ export interface ReviewDraft {
   readonly body: string;
   readonly updatedAt: string;
   readonly source?: ReviewDraftSource;
+  readonly tags?: readonly AgentReviewTag[];
 }
 
 export interface ReviewSubmitResult {

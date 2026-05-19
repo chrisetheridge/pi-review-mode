@@ -5,11 +5,18 @@ import type {
   AgentReviewCoordinatorOptions,
   AgentReviewSubmitPayload,
   AgentReviewSubmitResult,
+  AgentReviewTag,
   MutablePendingAgentReview,
   PendingAgentReview,
   SeedReviewDraft,
   SubmittedAgentReviewComment
 } from "./types.js";
+
+const VALID_AGENT_REVIEW_TAGS = new Set<AgentReviewTag>([
+  "spec",
+  "standards",
+  "bug"
+]);
 
 export class AgentReviewCoordinator {
   private readonly maxComments: number;
@@ -80,7 +87,12 @@ export class AgentReviewCoordinator {
           `Comment body is too long. Maximum is ${this.maxBodyLength} characters.`
         );
       }
-      byAnchor.set(comment.anchorId, { anchorId: comment.anchorId, body });
+      const tags = normalizeAgentReviewTags(comment.tags);
+      byAnchor.set(comment.anchorId, {
+        anchorId: comment.anchorId,
+        body,
+        ...(tags.length > 0 ? { tags } : {})
+      });
     }
 
     const accepted = [...byAnchor.values()];
@@ -111,6 +123,24 @@ export function agentCommentsToSeedDrafts(
   return comments.map((comment) => ({
     anchorId: comment.anchorId,
     body: comment.body,
-    source: "agent"
+    source: "agent",
+    ...(comment.tags && comment.tags.length > 0 ? { tags: comment.tags } : {})
   }));
+}
+
+function normalizeAgentReviewTags(tags: unknown): AgentReviewTag[] {
+  if (tags == null) return [];
+  if (!Array.isArray(tags)) {
+    throw new Error("Agent review tags must be an array.");
+  }
+  const normalized: AgentReviewTag[] = [];
+  for (const tag of tags) {
+    if (!VALID_AGENT_REVIEW_TAGS.has(tag as AgentReviewTag)) {
+      throw new Error(`Unknown agent review tag: ${String(tag)}.`);
+    }
+    if (!normalized.includes(tag as AgentReviewTag)) {
+      normalized.push(tag as AgentReviewTag);
+    }
+  }
+  return normalized;
 }

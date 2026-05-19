@@ -1,5 +1,7 @@
 import type { DiffAnchor } from "./diff";
 
+export type AgentReviewTag = "spec" | "standards" | "bug";
+
 export type SavedCommentSource = "user" | "agent";
 
 export interface SavedComment {
@@ -10,6 +12,7 @@ export interface SavedComment {
   createdAt?: string;
   updatedAt?: string;
   source?: SavedCommentSource;
+  tags?: AgentReviewTag[];
 }
 
 export interface SaveCommentRequest {

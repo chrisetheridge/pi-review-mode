@@ -1,6 +1,10 @@
 import { resolveSnapshotAnchor } from "../snapshot/frozen.js";
 import type { ReviewSnapshot } from "../snapshot/types.js";
-import type { ReviewDraft, ReviewDraftSource } from "./draft.types.js";
+import type {
+  AgentReviewTag,
+  ReviewDraft,
+  ReviewDraftSource
+} from "./draft.types.js";
 
 export class InProcessReviewSessionError extends Error {
   constructor(message: string) {
@@ -13,6 +17,7 @@ export interface SeedReviewDraftInput {
   readonly anchorId: string;
   readonly body: string;
   readonly source: ReviewDraftSource;
+  readonly tags?: readonly AgentReviewTag[];
 }
 
 export interface InProcessReviewSessionOptions {
@@ -58,7 +63,8 @@ export class InProcessReviewSession {
       anchor,
       body: trimmed,
       updatedAt: new Date(this.now()).toISOString(),
-      source: existing?.source ?? "user"
+      source: existing?.source ?? "user",
+      ...(existing?.tags ? { tags: existing.tags } : {})
     };
     this.drafts.set(anchorId, draft);
     return draft;
@@ -105,7 +111,8 @@ export class InProcessReviewSession {
       anchor,
       body,
       updatedAt: new Date(this.now()).toISOString(),
-      source: seed.source
+      source: seed.source,
+      ...(seed.tags ? { tags: seed.tags } : {})
     });
   }
 

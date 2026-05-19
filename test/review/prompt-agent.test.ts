@@ -21,6 +21,11 @@ describe("buildAgentReviewPrompt", () => {
     expect(prompt).toContain("frozen Git diff snapshot");
     expect(prompt).toContain("Do not edit files");
     expect(prompt).toContain("submit_review_mode_comments");
+    expect(prompt).toContain("Valid tags: `spec`, `standards`, `bug`");
+    expect(prompt).toContain("Tags are optional");
+    expect(prompt).toContain("A comment may include multiple tags");
+    expect(prompt).toContain("Do not invent requirements");
+    expect(prompt).toContain('"tags": ["spec", "bug"]');
     expect(prompt).toContain(snapshot.files[0].anchor.id);
     expect(prompt).toContain(snapshot.files[0].hunks[0].rows[1].anchor.id);
     expect(prompt).toContain("anchorId");
