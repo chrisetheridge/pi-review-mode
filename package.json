@@ -30,7 +30,7 @@
     "biome:format": "biome format --write .",
     "test": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "prepare": "npm run build && husky"
+    "prepublishOnly": "npm run build"
   },
   "pi": {
     "extensions": [

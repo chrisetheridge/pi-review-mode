@@ -122,7 +122,7 @@ Publish with npm when the tarball includes `dist/extension/**` and `dist/review-
 npm publish
 ```
 
-The `prepare` script runs the build, so `npm pack`, `npm publish`, and Pi git installs rebuild both the extension and review UI assets. Runtime review UI assets are bundled locally; no CDN assets are required.
+Release scripts build the extension and review UI before packaging. The generated `dist/` assets are committed so Pi git installs and updates can run with production dependencies only. Runtime review UI assets are bundled locally; no CDN assets are required.
 
 ## Manual Smoke Tests
 

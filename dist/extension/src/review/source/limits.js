@@ -1,0 +1,4 @@
+export const REVIEW_MAX_FILES = 250;
+export const REVIEW_MAX_CHANGED_LINES = 10_000;
+export const REVIEW_WARN_FILES = 100;
+export const REVIEW_WARN_CHANGED_LINES = 4_000;

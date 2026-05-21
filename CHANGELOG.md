@@ -12,6 +12,12 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+## [0.3.1] - 2026-05-21
+
+### Fixed
+
+- Git-based Pi installs and updates no longer run an install-time TypeScript build with omitted dev dependencies.
+
 ## [0.3.0] - 2026-05-21
 
 ### Added

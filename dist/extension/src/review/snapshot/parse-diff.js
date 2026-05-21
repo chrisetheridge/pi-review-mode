@@ -1,0 +1,187 @@
+import { createHash } from "node:crypto";
+import * as gitDiffParserModule from "gitdiff-parser";
+const gitDiffParser = gitDiffParserModule.default ?? gitDiffParserModule;
+export function parseReviewDiff(diff) {
+    const parsedFiles = gitDiffParser.parse(diff);
+    const metadataByFile = collectMetadata(diff);
+    const patchesByFile = collectFilePatches(diff);
+    return parsedFiles.map((file, fileIndex) => toReviewFile(file, metadataByFile[fileIndex] ?? [], patchesByFile[fileIndex] ?? ""));
+}
+function toReviewFile(file, metadata, patch) {
+    const path = stripGitPath(file.newPath === "/dev/null" ? file.oldPath : file.newPath);
+    const oldPath = file.oldPath && file.oldPath !== path && file.oldPath !== "/dev/null"
+        ? stripGitPath(file.oldPath)
+        : undefined;
+    const binary = Boolean(file.isBinary) ||
+        metadata.some((line) => line.startsWith("Binary files ") || line === "GIT binary patch");
+    let additions = 0;
+    let deletions = 0;
+    const hunks = file.hunks.map((hunk, hunkIndex) => {
+        const rows = hunk.changes.map((change, rowIndex) => {
+            const kind = changeKind(change);
+            if (kind === "add")
+                additions += 1;
+            if (kind === "delete")
+                deletions += 1;
+            const oldLineNumber = change.type === "normal"
+                ? change.oldLineNumber
+                : change.type === "delete"
+                    ? change.lineNumber
+                    : undefined;
+            const newLineNumber = change.type === "normal"
+                ? change.newLineNumber
+                : change.type === "insert"
+                    ? change.lineNumber
+                    : undefined;
+            return {
+                anchor: makeLineAnchor({
+                    path,
+                    oldPath,
+                    side: kind === "delete" ? "old" : "new",
+                    hunkIndex,
+                    hunkHeader: hunk.content,
+                    oldLineNumber,
+                    newLineNumber,
+                    rowIndex,
+                    lineText: change.content
+                }),
+                kind,
+                text: change.content,
+                oldLineNumber,
+                newLineNumber,
+                rowIndex
+            };
+        });
+        return {
+            index: hunkIndex,
+            header: hunk.content,
+            oldStart: hunk.oldStart,
+            oldLines: hunk.oldLines,
+            newStart: hunk.newStart,
+            newLines: hunk.newLines,
+            rows
+        };
+    });
+    return {
+        anchor: makeFileAnchor(path, oldPath),
+        status: statusFromGitDiffFile(file, binary, metadata),
+        path,
+        oldPath,
+        metadata,
+        patch,
+        additions,
+        deletions,
+        binary,
+        hunks
+    };
+}
+function collectFilePatches(diff) {
+    const starts = [];
+    const pattern = /^diff --git /gm;
+    let match = pattern.exec(diff);
+    while (match !== null) {
+        starts.push(match.index);
+        match = pattern.exec(diff);
+    }
+    return starts.map((start, index) => {
+        const end = starts[index + 1] ?? diff.length;
+        return diff.slice(start, end).replace(/\n?$/, "\n");
+    });
+}
+function collectMetadata(diff) {
+    const files = [];
+    const lines = diff.split(/\r?\n/);
+    let index = 0;
+    while (index < lines.length) {
+        const line = lines[index];
+        if (!line.startsWith("diff --git ")) {
+            index += 1;
+            continue;
+        }
+        const metadata = [line];
+        index += 1;
+        while (index < lines.length && !lines[index].startsWith("diff --git ")) {
+            const current = lines[index];
+            if (current.startsWith("@@ ")) {
+                metadata.push(current);
+                index += 1;
+                while (index < lines.length &&
+                    !lines[index].startsWith("diff --git ") &&
+                    !lines[index].startsWith("@@ ")) {
+                    index += 1;
+                }
+                continue;
+            }
+            metadata.push(current);
+            index += 1;
+        }
+        files.push(metadata);
+    }
+    return files;
+}
+function changeKind(change) {
+    if (change.type === "insert")
+        return "add";
+    if (change.type === "delete")
+        return "delete";
+    return "context";
+}
+function statusFromGitDiffFile(file, binary, metadata) {
+    if (file.type === "add")
+        return binary ? "binary" : "added";
+    if (file.type === "delete")
+        return "deleted";
+    if (file.type === "rename")
+        return "renamed";
+    if (file.type === "copy")
+        return "copied";
+    if (metadata.some((line) => line.startsWith("rename from ") || line.startsWith("rename to ")))
+        return "renamed";
+    if (metadata.some((line) => line.startsWith("copy from ") || line.startsWith("copy to ")))
+        return "copied";
+    if (binary)
+        return "binary";
+    return "modified";
+}
+function stripGitPath(path) {
+    return path
+        .replace(/\t$/, "")
+        .replace(/^"(.+)"$/, "$1")
+        .replace(/\\"/g, '"');
+}
+function makeFileAnchor(path, oldPath) {
+    return {
+        id: anchorId(["file", path, oldPath ?? ""]),
+        path: stripGitPath(path),
+        oldPath: oldPath ? stripGitPath(oldPath) : undefined,
+        side: "file"
+    };
+}
+function makeLineAnchor(anchor) {
+    const normalized = {
+        ...anchor,
+        path: stripGitPath(anchor.path),
+        oldPath: anchor.oldPath ? stripGitPath(anchor.oldPath) : undefined
+    };
+    return {
+        ...normalized,
+        id: anchorId([
+            "line",
+            normalized.path,
+            normalized.oldPath ?? "",
+            normalized.side,
+            String(normalized.hunkIndex ?? ""),
+            normalized.hunkHeader ?? "",
+            String(normalized.oldLineNumber ?? ""),
+            String(normalized.newLineNumber ?? ""),
+            String(normalized.rowIndex ?? ""),
+            normalized.lineText ?? ""
+        ])
+    };
+}
+function anchorId(parts) {
+    return createHash("sha256")
+        .update(parts.join("\0"))
+        .digest("hex")
+        .slice(0, 24);
+}
