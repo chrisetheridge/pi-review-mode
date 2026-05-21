@@ -12,6 +12,12 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+## [0.3.0] - 2026-05-21
+
+### Added
+
+- Agent pre-review comments can now carry `spec`, `standards`, and `bug` tags, and the review UI can filter tagged comments.
+
 ## [0.2.0] - 2026-05-15
 
 ### Changed
